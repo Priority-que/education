@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.SystemConfigMapper">
+
+    <select id="selectByGroup" resultType="com.xixi.entity.SystemConfig">
+        SELECT *
+        FROM system_config
+        WHERE config_group = #{configGroup}
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="selectByConfigKey" resultType="com.xixi.entity.SystemConfig">
+        SELECT *
+        FROM system_config
+        WHERE config_key = #{configKey}
+        LIMIT 1
+    </select>
+
+    <select id="selectByConfigKeys" resultType="com.xixi.entity.SystemConfig">
+        SELECT *
+        FROM system_config
+        <where>
+            <if test="configKeys != null and configKeys.size > 0">
+                config_key IN
+                <foreach collection="configKeys" item="item" open="(" close=")" separator=",">
+                    #{item}
+                </foreach>
+            </if>
+            <if test="configKeys == null or configKeys.size == 0">
+                1 = 0
+            </if>
+        </where>
+    </select>
+
+</mapper>

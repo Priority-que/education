@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.CommunicationRecordMapper">
+
+    <select id="selectCommunicationPage" resultType="com.xixi.entity.CommunicationRecord">
+        SELECT *
+        FROM communication_record
+        WHERE enterprise_id = #{enterpriseId}
+        <if test="applicationId != null">
+            AND application_id = #{applicationId}
+        </if>
+        <if test="jobId != null">
+            AND job_id = #{jobId}
+        </if>
+        <if test="studentId != null">
+            AND student_id = #{studentId}
+        </if>
+        <if test="communicationType != null and communicationType != ''">
+            AND communication_type = #{communicationType}
+        </if>
+        <if test="isRead != null">
+            AND is_read = #{isRead}
+        </if>
+        ORDER BY created_time DESC, id DESC
+    </select>
+
+    <select id="selectByEnterpriseAndId" resultType="com.xixi.entity.CommunicationRecord">
+        SELECT *
+        FROM communication_record
+        WHERE enterprise_id = #{enterpriseId}
+          AND id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectByStudentAndId" resultType="com.xixi.entity.CommunicationRecord">
+        SELECT *
+        FROM communication_record
+        WHERE student_id = #{studentId}
+          AND id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectStudentCommunicationPage" resultType="java.util.LinkedHashMap">
+        SELECT
+            cr.id AS recordId,
+            cr.application_id AS applicationId,
+            ja.application_no AS applicationNo,
+            cr.job_id AS jobId,
+            COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ja.job_snapshot_json, '$.jobTitle')), jp.job_title) AS jobTitle,
+            ja.enterprise_id AS enterpriseId,
+            COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ja.enterprise_snapshot_json, '$.enterpriseName')), eu.company_name) AS enterpriseName,
+            cr.communication_type AS communicationType,
+            cr.communication_subject AS communicationSubject,
+            cr.communication_content AS communicationContent,
+            cr.is_read AS isRead,
+            cr.need_student_confirm AS needStudentConfirm,
+            cr.student_confirmed AS studentConfirmed,
+            cr.interview_time AS interviewTime,
+            cr.interview_address AS interviewAddress,
+            cr.created_time AS createdTime
+        FROM communication_record cr
+        LEFT JOIN job_application ja ON ja.id = cr.application_id
+        LEFT JOIN job_posting jp ON jp.id = cr.job_id
+        LEFT JOIN education_user_db.enterprises eu ON eu.id = ja.enterprise_id
+        WHERE cr.student_id = #{studentId}
+        <if test="applicationId != null">
+            AND cr.application_id = #{applicationId}
+        </if>
+        <if test="isRead != null">
+            AND cr.is_read = #{isRead}
+        </if>
+        ORDER BY cr.created_time DESC, cr.id DESC
+    </select>
+
+    <select id="selectTalentCommunicationPage" resultType="java.util.LinkedHashMap">
+        SELECT
+            cr.id AS recordId,
+            cr.application_id AS applicationId,
+            ja.application_no AS applicationNo,
+            cr.job_id AS jobId,
+            COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ja.job_snapshot_json, '$.jobTitle')), jp.job_title) AS jobTitle,
+            cr.student_id AS studentId,
+            COALESCE(u.real_name, u.nickname) AS studentName,
+            cr.communication_type AS communicationType,
+            cr.communication_subject AS communicationSubject,
+            cr.communication_content AS communicationContent,
+            cr.need_student_confirm AS needStudentConfirm,
+            cr.student_confirmed AS studentConfirmed,
+            cr.is_read AS isRead,
+            cr.read_time AS readTime,
+            cr.created_time AS createdTime
+        FROM communication_record cr
+        LEFT JOIN job_application ja ON ja.id = cr.application_id
+        LEFT JOIN job_posting jp ON jp.id = cr.job_id
+        LEFT JOIN education_user_db.students s ON s.id = cr.student_id
+        LEFT JOIN education_user_db.users u ON u.id = s.user_id
+        WHERE cr.enterprise_id = #{enterpriseId}
+        <if test="applicationId != null">
+            AND cr.application_id = #{applicationId}
+        </if>
+        <if test="jobId != null">
+            AND cr.job_id = #{jobId}
+        </if>
+        <if test="studentId != null">
+            AND cr.student_id = #{studentId}
+        </if>
+        <if test="communicationType != null and communicationType != ''">
+            AND cr.communication_type = #{communicationType}
+        </if>
+        <if test="isRead != null">
+            AND cr.is_read = #{isRead}
+        </if>
+        ORDER BY cr.created_time DESC, cr.id DESC
+    </select>
+
+    <select id="selectByApplicationId" resultType="java.util.LinkedHashMap">
+        SELECT
+            cr.id AS recordId,
+            cr.application_id AS applicationId,
+            ja.application_no AS applicationNo,
+            cr.job_id AS jobId,
+            COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ja.job_snapshot_json, '$.jobTitle')), jp.job_title) AS jobTitle,
+            ja.enterprise_id AS enterpriseId,
+            COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ja.enterprise_snapshot_json, '$.enterpriseName')), eu.company_name) AS enterpriseName,
+            cr.student_id AS studentId,
+            COALESCE(u.real_name, u.nickname) AS studentName,
+            cr.communication_type AS communicationType,
+            cr.communication_subject AS communicationSubject,
+            cr.communication_content AS communicationContent,
+            cr.attachment_url AS attachmentUrl,
+            cr.need_student_confirm AS needStudentConfirm,
+            cr.student_confirmed AS studentConfirmed,
+            cr.is_read AS isRead,
+            cr.read_time AS readTime,
+            cr.confirm_time AS confirmTime,
+            cr.confirm_remark AS confirmRemark,
+            cr.interview_time AS interviewTime,
+            cr.interview_address AS interviewAddress,
+            cr.created_time AS createdTime
+        FROM communication_record cr
+        LEFT JOIN job_application ja ON ja.id = cr.application_id
+        LEFT JOIN job_posting jp ON jp.id = cr.job_id
+        LEFT JOIN education_user_db.enterprises eu ON eu.id = ja.enterprise_id
+        LEFT JOIN education_user_db.students s ON s.id = cr.student_id
+        LEFT JOIN education_user_db.users u ON u.id = s.user_id
+        WHERE cr.application_id = #{applicationId}
+        ORDER BY cr.created_time DESC, cr.id DESC
+    </select>
+
+    <update id="markReadByEnterpriseAndId">
+        UPDATE communication_record
+        SET is_read = 1,
+            read_time = #{readTime},
+            updated_time = #{readTime}
+        WHERE enterprise_id = #{enterpriseId}
+          AND id = #{id}
+          AND (is_read = 0 OR is_read IS NULL)
+    </update>
+
+    <update id="markReadByStudentAndId">
+        UPDATE communication_record
+        SET is_read = 1,
+            read_time = #{readTime},
+            updated_time = #{readTime}
+        WHERE student_id = #{studentId}
+          AND id = #{id}
+          AND (is_read = 0 OR is_read IS NULL)
+    </update>
+
+    <update id="markReadByStudentAndApplication">
+        UPDATE communication_record
+        SET is_read = 1,
+            read_time = #{readTime},
+            updated_time = #{readTime}
+        WHERE student_id = #{studentId}
+          AND application_id = #{applicationId}
+          AND (is_read = 0 OR is_read IS NULL)
+    </update>
+
+    <update id="confirmByStudentAndId">
+        UPDATE communication_record
+        SET student_confirmed = 1,
+            confirm_remark = #{confirmRemark},
+            confirm_time = #{confirmTime},
+            is_read = 1,
+            read_time = #{readTime},
+            updated_time = #{confirmTime}
+        WHERE student_id = #{studentId}
+          AND id = #{id}
+          AND need_student_confirm = 1
+          AND (student_confirmed = 0 OR student_confirmed IS NULL)
+    </update>
+
+    <select id="countTotalByEnterprise" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM communication_record
+        WHERE enterprise_id = #{enterpriseId}
+    </select>
+
+    <select id="countCreatedByEnterpriseAndDate" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM communication_record
+        WHERE enterprise_id = #{enterpriseId}
+          AND DATE(created_time) = #{statDate}
+    </select>
+
+    <select id="selectDistinctEnterpriseIds" resultType="java.lang.Long">
+        SELECT DISTINCT enterprise_id
+        FROM communication_record
+        WHERE enterprise_id IS NOT NULL
+    </select>
+
+</mapper>

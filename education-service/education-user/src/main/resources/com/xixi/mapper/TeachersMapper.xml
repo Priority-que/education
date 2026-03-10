@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.TeachersMapper">
+    
+    <!-- 分页查询教师列表（关联用户表） -->
+    <select id="selectTeacherPage" resultType="com.xixi.pojo.vo.TeachersVo">
+        SELECT
+            t.id,
+            t.user_id AS userId,
+            t.teacher_number AS teacherNumber,
+            t.title,
+            t.department,
+            t.research_area AS researchArea,
+            t.introduction,
+            t.created_time AS createdTime,
+            t.updated_time AS updatedTime,
+            u.real_name AS realName,
+            u.nickname,
+            u.avatar,
+            u.email,
+            u.phone
+        FROM teachers t
+        LEFT JOIN users u ON t.user_id = u.id
+        <where>
+            <if test="q.teacherNumber != null and q.teacherNumber != ''">
+                AND t.teacher_number = #{q.teacherNumber}
+            </if>
+            <if test="q.title != null and q.title != ''">
+                AND t.title LIKE CONCAT('%', #{q.title}, '%')
+            </if>
+            <if test="q.department != null and q.department != ''">
+                AND t.department LIKE CONCAT('%', #{q.department}, '%')
+            </if>
+        </where>
+        ORDER BY t.created_time DESC
+    </select>
+    
+    <!-- 根据ID查询教师详情（关联用户表） -->
+    <select id="selectTeacherById" resultType="com.xixi.pojo.vo.TeachersVo">
+        SELECT
+            t.id,
+            t.user_id AS userId,
+            t.teacher_number AS teacherNumber,
+            t.title,
+            t.department,
+            t.research_area AS researchArea,
+            t.introduction,
+            t.created_time AS createdTime,
+            t.updated_time AS updatedTime,
+            u.real_name AS realName,
+            u.nickname,
+            u.avatar,
+            u.email,
+            u.phone
+        FROM teachers t
+        LEFT JOIN users u ON t.user_id = u.id
+        WHERE t.id = #{id}
+    </select>
+    <select id="getTeachersIdByName" resultType="integer">
+        select t.id from teachers t join users u on t.user_id = u.id where u.real_name = #{name}
+    </select>
+    <select id="getTeachersNameById" resultType="string">
+        select u.real_name from teachers t join users u on t.user_id = u.id where t.id = #{id}
+    </select>
+    <select id="getTeacherIdByUserId" resultType="long">
+        select t.id from teachers t where t.user_id = #{userId}
+    </select>
+</mapper>

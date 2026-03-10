@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.LearningStatisticsMapper">
+
+    <!-- 统计总学习时长（秒） -->
+    <select id="selectTotalStudyTime" resultType="java.lang.Integer">
+        SELECT COALESCE(SUM(total_study_time), 0)
+        FROM student_course
+        WHERE student_id = #{studentId}
+    </select>
+
+    <!-- 按时间范围统计学习时长（秒） -->
+    <select id="selectStudyTimeInRange" resultType="java.lang.Integer">
+        SELECT COALESCE(SUM(duration), 0)
+        FROM learning_record
+        WHERE student_id = #{studentId}
+          AND DATE(COALESCE(start_time, created_time)) >= #{startDate}
+          AND DATE(COALESCE(start_time, created_time)) &lt;= #{endDate}
+    </select>
+
+    <!-- 按日期统计学习时长 -->
+    <select id="selectStudyTimeByDate" resultType="java.util.Map">
+        SELECT
+            DATE(COALESCE(start_time, created_time)) AS date,
+            SUM(duration) AS studyTime
+        FROM learning_record
+        WHERE student_id = #{studentId}
+        <if test="startDate != null and startDate != ''">
+            AND DATE(COALESCE(start_time, created_time)) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(COALESCE(start_time, created_time)) &lt;= #{endDate}
+        </if>
+        GROUP BY DATE(COALESCE(start_time, created_time))
+        ORDER BY date ASC
+    </select>
+
+    <!-- 统计各课程的学习进度 -->
+    <select id="selectCourseProgress" resultType="java.util.Map">
+        SELECT
+            sc.course_id AS courseId,
+            sc.course_name AS courseName,
+            COALESCE(sc.progress_percentage, 0) AS progressPercentage
+        FROM student_course sc
+        WHERE sc.student_id = #{studentId}
+          AND sc.learning_status = 'STUDYING'
+        ORDER BY sc.progress_percentage DESC
+    </select>
+
+    <!-- 统计学习活跃时间段 -->
+    <select id="selectStudyTimeByHour" resultType="java.util.Map">
+        SELECT
+            HOUR(COALESCE(start_time, created_time)) AS hour,
+            SUM(duration) AS studyTime
+        FROM learning_record
+        WHERE student_id = #{studentId}
+        GROUP BY HOUR(COALESCE(start_time, created_time))
+        ORDER BY hour ASC
+    </select>
+
+    <!-- 统计学生作业提交数（排除草稿） -->
+    <select id="selectHomeworkSubmissionCount" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM homework_submission
+        WHERE student_id = #{studentId}
+          AND (status IS NULL OR status != 'DRAFT')
+    </select>
+
+    <!-- 统计学生测验提交数（排除进行中） -->
+    <!-- 统计学生可见课程中已发布作业总数 -->
+    <select id="selectStudentPublishedHomeworkCount" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT h.id)
+        FROM homework h
+                 INNER JOIN student_course sc ON sc.course_id = h.course_id
+        WHERE sc.student_id = #{studentId}
+          AND sc.learning_status != 'DROPPED'
+          AND h.status = 'PUBLISHED'
+    </select>
+
+    <!-- 统计学生可见课程中已提交作业数（排除草稿） -->
+    <select id="selectStudentSubmittedHomeworkCount" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT hs.homework_id)
+        FROM homework_submission hs
+                 INNER JOIN homework h ON h.id = hs.homework_id
+                 INNER JOIN student_course sc ON sc.course_id = h.course_id
+        WHERE hs.student_id = #{studentId}
+          AND sc.student_id = #{studentId}
+          AND sc.learning_status != 'DROPPED'
+          AND h.status = 'PUBLISHED'
+          AND (hs.status IS NULL OR hs.status != 'DRAFT')
+    </select>
+
+    <!-- 统计学生测验提交数（排除进行中） -->
+    <select id="selectExamSubmissionCount" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM exam_submission
+        WHERE student_id = #{studentId}
+          AND (submit_time IS NOT NULL OR status IS NULL OR status != 'IN_PROGRESS')
+    </select>
+
+    <!-- 汇总学生学习数据 -->
+    <select id="selectLearningSummary" resultType="java.util.Map">
+        SELECT
+            COALESCE(SUM(duration), 0) AS totalStudyTime,
+            COUNT(DISTINCT DATE(COALESCE(start_time, created_time))) AS studyDays,
+            MIN(DATE(COALESCE(start_time, created_time))) AS firstStudyDate,
+            MAX(DATE(COALESCE(start_time, created_time))) AS lastStudyDate
+        FROM learning_record
+        WHERE student_id = #{studentId}
+    </select>
+
+    <!-- 查询学生所有学习日期 -->
+    <select id="selectStudyDateList" resultType="java.lang.String">
+        SELECT DISTINCT DATE_FORMAT(DATE(COALESCE(start_time, created_time)), '%Y-%m-%d') AS statDate
+        FROM learning_record
+        WHERE student_id = #{studentId}
+        ORDER BY statDate ASC
+    </select>
+
+    <!-- 教师端统计课程活跃学生数 -->
+    <select id="selectTeacherCourseActiveStudentCount" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM student_course
+        WHERE course_id = #{courseId}
+          AND learning_status != 'DROPPED'
+          AND COALESCE(total_study_time, 0) > 0
+    </select>
+
+    <!-- 教师端统计课程学习时长排名 -->
+    <select id="selectTeacherCourseStudyTimeRanking" resultType="java.util.Map">
+        SELECT
+            student_id AS studentId,
+            COALESCE(total_study_time, 0) AS totalStudyTime
+        FROM student_course
+        WHERE course_id = #{courseId}
+          AND learning_status != 'DROPPED'
+        ORDER BY COALESCE(total_study_time, 0) DESC, student_id ASC
+        LIMIT 20
+    </select>
+
+    <!-- 教师端统计课程学习进度排名 -->
+    <select id="selectTeacherCourseProgressRanking" resultType="java.util.Map">
+        SELECT
+            student_id AS studentId,
+            COALESCE(progress_percentage, 0) AS progressPercentage
+        FROM student_course
+        WHERE course_id = #{courseId}
+          AND learning_status != 'DROPPED'
+        ORDER BY COALESCE(progress_percentage, 0) DESC, student_id ASC
+        LIMIT 20
+    </select>
+
+    <!-- 教师端统计课程活跃时间段分布 -->
+    <select id="selectTeacherCourseActiveTimeDistribution" resultType="java.util.Map">
+        SELECT
+            HOUR(start_time) AS hour,
+            COALESCE(SUM(duration), 0) AS studyTime
+        FROM learning_record
+        WHERE course_id = #{courseId}
+        GROUP BY HOUR(start_time)
+        ORDER BY hour ASC
+    </select>
+
+    <!-- 教师端课程学习进度汇总 -->
+    <select id="selectTeacherCourseProgressSummary" resultType="java.util.Map">
+        SELECT
+            COUNT(1) AS totalStudents,
+            COALESCE(AVG(sc.progress_percentage), 0) AS averageProgress
+        FROM student_course sc
+        WHERE sc.course_id = #{courseId}
+          AND sc.learning_status != 'DROPPED'
+    </select>
+
+    <!-- 教师端课程学习进度分段分布 -->
+    <select id="selectTeacherCourseProgressDistribution" resultType="java.util.Map">
+        SELECT
+            CASE
+                WHEN COALESCE(sc.progress_percentage, 0) &lt;= 20 THEN '0-20'
+                WHEN COALESCE(sc.progress_percentage, 0) &lt;= 40 THEN '21-40'
+                WHEN COALESCE(sc.progress_percentage, 0) &lt;= 60 THEN '41-60'
+                WHEN COALESCE(sc.progress_percentage, 0) &lt;= 80 THEN '61-80'
+                ELSE '81-100'
+            END AS rangeLabel,
+            COUNT(1) AS studentCount
+        FROM student_course sc
+        WHERE sc.course_id = #{courseId}
+          AND sc.learning_status != 'DROPPED'
+        GROUP BY
+            CASE
+                WHEN COALESCE(sc.progress_percentage, 0) &lt;= 20 THEN '0-20'
+                WHEN COALESCE(sc.progress_percentage, 0) &lt;= 40 THEN '21-40'
+                WHEN COALESCE(sc.progress_percentage, 0) &lt;= 60 THEN '41-60'
+                WHEN COALESCE(sc.progress_percentage, 0) &lt;= 80 THEN '61-80'
+                ELSE '81-100'
+            END
+    </select>
+
+    <!-- 教师端课程学习进度趋势 -->
+    <select id="selectTeacherCourseProgressTrend" resultType="java.util.Map">
+        SELECT
+            DATE(lr.start_time) AS statDate,
+            COALESCE(AVG(lr.video_progress), 0) AS averageProgress,
+            COUNT(DISTINCT lr.student_id) AS activeStudents
+        FROM learning_record lr
+        WHERE lr.course_id = #{courseId}
+          AND lr.start_time IS NOT NULL
+        GROUP BY DATE(lr.start_time)
+        ORDER BY statDate ASC
+    </select>
+
+    <!-- 教师端课程活跃时间段分析 -->
+    <select id="selectTeacherCourseTimeAnalysis" resultType="java.util.Map">
+        SELECT
+            HOUR(lr.start_time) AS hour,
+            COUNT(DISTINCT lr.student_id) AS studentCount,
+            COALESCE(SUM(lr.duration), 0) AS studyTime
+        FROM learning_record lr
+        WHERE lr.course_id = #{courseId}
+          AND lr.start_time IS NOT NULL
+        GROUP BY HOUR(lr.start_time)
+        ORDER BY hour ASC
+    </select>
+
+</mapper>

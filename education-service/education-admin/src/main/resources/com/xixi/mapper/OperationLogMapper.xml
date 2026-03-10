@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.OperationLogMapper">
+
+    <select id="selectOperationPage" resultType="com.xixi.entity.OperationLog">
+        SELECT *
+        FROM operation_log
+        <where>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+            <if test="userRole != null and userRole != ''">
+                AND user_role = #{userRole}
+            </if>
+            <if test="operationType != null and operationType != ''">
+                AND operation_type = #{operationType}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="startTime != null">
+                AND created_time <![CDATA[ >= ]]> #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_time <![CDATA[ <= ]]> #{endTime}
+            </if>
+        </where>
+        ORDER BY created_time DESC, id DESC
+    </select>
+
+    <select id="selectForExport" resultType="com.xixi.entity.OperationLog">
+        SELECT *
+        FROM operation_log
+        <where>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+            <if test="userRole != null and userRole != ''">
+                AND user_role = #{userRole}
+            </if>
+            <if test="operationType != null and operationType != ''">
+                AND operation_type = #{operationType}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="startTime != null">
+                AND created_time <![CDATA[ >= ]]> #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_time <![CDATA[ <= ]]> #{endTime}
+            </if>
+        </where>
+        ORDER BY created_time DESC, id DESC
+        LIMIT #{maxRows}
+    </select>
+
+    <delete id="deleteBeforeTime">
+        DELETE FROM operation_log
+        WHERE created_time <![CDATA[ < ]]> #{beforeTime}
+    </delete>
+
+    <select id="selectAdminUserPage" resultType="com.xixi.pojo.vo.admin.AdminUserPageVo">
+        SELECT
+            u.id AS userId,
+            u.username AS userName,
+            COALESCE(
+                    NULLIF(role_cfg.config_value, ''),
+                    CASE u.role
+                        WHEN 1 THEN 'ADMIN'
+                        WHEN 2 THEN 'STUDENT'
+                        WHEN 3 THEN 'TEACHER'
+                        WHEN 4 THEN 'ENTERPRISE'
+                        ELSE 'UNKNOWN'
+                        END
+            ) AS userRole,
+            COALESCE(ol.operation_count, 0) AS operationCount,
+            ol.last_operation_time AS lastOperationTime,
+            CAST(
+                    CASE
+                        WHEN status_cfg.config_value = '0' THEN 0
+                        WHEN status_cfg.config_value = '1' THEN 1
+                        ELSE COALESCE(u.status, 1)
+                        END
+                    AS SIGNED
+            ) AS status
+        FROM education_user_db.users u
+                 LEFT JOIN (
+            SELECT
+                user_id,
+                COUNT(1) AS operation_count,
+                MAX(created_time) AS last_operation_time
+            FROM operation_log
+            WHERE user_id IS NOT NULL
+            GROUP BY user_id
+        ) ol ON ol.user_id = u.id
+                 LEFT JOIN system_config role_cfg
+                           ON role_cfg.config_key = CONCAT('admin.user.role.', u.id)
+                 LEFT JOIN system_config status_cfg
+                           ON status_cfg.config_key = CONCAT('admin.user.status.', u.id)
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    CAST(u.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
+                        OR u.username LIKE CONCAT('%', #{keyword}, '%')
+                    )
+            </if>
+            <if test="userRole != null and userRole != ''">
+                AND COALESCE(
+                        NULLIF(role_cfg.config_value, ''),
+                        CASE u.role
+                            WHEN 1 THEN 'ADMIN'
+                            WHEN 2 THEN 'STUDENT'
+                            WHEN 3 THEN 'TEACHER'
+                            WHEN 4 THEN 'ENTERPRISE'
+                            ELSE 'UNKNOWN'
+                            END
+                ) = #{userRole}
+            </if>
+            <if test="status != null">
+                AND (
+                    CASE
+                        WHEN status_cfg.config_value = '0' THEN 0
+                        WHEN status_cfg.config_value = '1' THEN 1
+                        ELSE COALESCE(u.status, 1)
+                        END
+                    ) = #{status}
+            </if>
+        </where>
+        ORDER BY ol.last_operation_time DESC, u.id DESC
+    </select>
+
+    <select id="selectUserAggregate" resultType="com.xixi.pojo.vo.admin.AdminUserPageVo">
+        SELECT
+            u.id AS userId,
+            u.username AS userName,
+            CASE u.role
+                WHEN 1 THEN 'ADMIN'
+                WHEN 2 THEN 'STUDENT'
+                WHEN 3 THEN 'TEACHER'
+                WHEN 4 THEN 'ENTERPRISE'
+                ELSE 'UNKNOWN'
+                END AS userRole,
+            COALESCE(ol.operation_count, 0) AS operationCount,
+            ol.last_operation_time AS lastOperationTime,
+            CAST(COALESCE(u.status, 1) AS SIGNED) AS status
+        FROM education_user_db.users u
+                 LEFT JOIN (
+            SELECT
+                user_id,
+                COUNT(1) AS operation_count,
+                MAX(created_time) AS last_operation_time
+            FROM operation_log
+            WHERE user_id = #{userId}
+            GROUP BY user_id
+        ) ol ON ol.user_id = u.id
+        WHERE u.id = #{userId}
+    </select>
+
+    <select id="selectRecentByUserId" resultType="com.xixi.entity.OperationLog">
+        SELECT *
+        FROM operation_log
+        WHERE user_id = #{userId}
+        ORDER BY created_time DESC, id DESC
+        LIMIT #{limitSize}
+    </select>
+
+    <select id="countByOperationType" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM operation_log
+        WHERE operation_type = #{operationType}
+    </select>
+
+    <select id="countByOperationTypeAndStatus" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM operation_log
+        WHERE operation_type = #{operationType}
+          AND status = #{status}
+    </select>
+
+    <select id="selectLatestSuccessBlockchainLog" resultType="com.xixi.entity.OperationLog">
+        SELECT *
+        FROM operation_log
+        WHERE operation_type IN ('BLOCKCHAIN_ANCHOR', 'BLOCKCHAIN_ANCHOR_BATCH')
+          AND status = 1
+        ORDER BY created_time DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectDatabaseOverview" resultType="com.xixi.pojo.vo.admin.MonitorDatabaseOverviewVo">
+        SELECT
+            COALESCE(pool.total_connections, 0) AS totalConnections,
+            COALESCE(pool.active_connections, 0) AS activeConnections,
+            CASE
+                WHEN COALESCE(pool.total_connections, 0) = 0 THEN 0
+                ELSE ROUND(pool.active_connections / pool.total_connections, 4)
+                END AS connectionUsageRate,
+            COALESCE(logStat.slow_query_count, 0) AS slowQueryCount,
+            COALESCE(logStat.avg_query_time_ms, 0) AS avgQueryTimeMs
+        FROM (
+                 SELECT
+                     SUM(COALESCE(latest.thread_count, 0)) AS total_connections,
+                     SUM(CASE WHEN latest.status = 'UP' THEN COALESCE(latest.thread_count, 0) ELSE 0 END) AS active_connections
+                 FROM (
+                          SELECT sm.*
+                          FROM system_monitor sm
+                                   INNER JOIN (
+                              SELECT service_name, MAX(report_time) AS max_report_time
+                              FROM system_monitor
+                              GROUP BY service_name
+                          ) t ON t.service_name = sm.service_name
+                              AND t.max_report_time = sm.report_time
+                      ) latest
+             ) pool
+                 CROSS JOIN (
+            SELECT
+                COUNT(CASE WHEN IFNULL(execute_time, 0) >= #{slowThresholdMs} THEN 1 END) AS slow_query_count,
+                ROUND(AVG(CASE WHEN IFNULL(execute_time, 0) >= #{slowThresholdMs} THEN execute_time END), 2) AS avg_query_time_ms
+            FROM operation_log
+            WHERE created_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        ) logStat
+    </select>
+
+    <select id="selectSlowSqlPage" resultType="com.xixi.pojo.vo.admin.MonitorSlowSqlPageVo">
+        SELECT
+            t.sql_digest AS sqlDigest,
+            t.avg_time_ms AS avgTimeMs,
+            t.max_time_ms AS maxTimeMs,
+            t.execute_count AS executeCount,
+            t.report_time AS reportTime
+        FROM (
+                 SELECT
+                     COALESCE(NULLIF(request_url, ''), CONCAT('OP:', IFNULL(operation_type, 'UNKNOWN'))) AS sql_digest,
+                     ROUND(AVG(IFNULL(execute_time, 0)), 2) AS avg_time_ms,
+                     ROUND(MAX(IFNULL(execute_time, 0)), 2) AS max_time_ms,
+                     COUNT(1) AS execute_count,
+                     MAX(created_time) AS report_time
+                 FROM operation_log
+                 WHERE IFNULL(execute_time, 0) >= #{slowThresholdMs}
+                 <if test="keyword != null and keyword != ''">
+                     AND (
+                         request_url LIKE CONCAT('%', #{keyword}, '%')
+                             OR operation_type LIKE CONCAT('%', #{keyword}, '%')
+                             OR request_params LIKE CONCAT('%', #{keyword}, '%')
+                         )
+                 </if>
+                 GROUP BY COALESCE(NULLIF(request_url, ''), CONCAT('OP:', IFNULL(operation_type, 'UNKNOWN')))
+             ) t
+        ORDER BY t.avg_time_ms DESC, t.report_time DESC
+    </select>
+
+    <select id="selectApiOverview" resultType="com.xixi.pojo.vo.admin.MonitorApiOverviewVo">
+        SELECT
+            COUNT(1) AS totalCalls,
+            SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS errorCalls,
+            ROUND(COUNT(1) / GREATEST(TIMESTAMPDIFF(SECOND, #{startTime}, NOW()), 1), 4) AS qps,
+            ROUND(AVG(IFNULL(execute_time, 0)), 2) AS avgResponseTime
+        FROM operation_log
+        WHERE created_time >= #{startTime}
+    </select>
+
+    <select id="selectApiStatPage" resultType="com.xixi.pojo.vo.admin.MonitorApiStatPageVo">
+        SELECT
+            request_url AS apiPath,
+            UPPER(IFNULL(request_method, 'UNKNOWN')) AS method,
+            COUNT(1) AS totalCalls,
+            SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS errorCalls,
+            ROUND(AVG(IFNULL(execute_time, 0)), 2) AS avgResponseTime,
+            ROUND(MAX(IFNULL(execute_time, 0)), 2) AS p95ResponseTime,
+            MAX(created_time) AS reportTime
+        FROM operation_log
+        <where>
+            request_url IS NOT NULL
+            AND request_url != ''
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    request_url LIKE CONCAT('%', #{keyword}, '%')
+                        OR request_method LIKE CONCAT('%', #{keyword}, '%')
+                    )
+            </if>
+        </where>
+        GROUP BY request_url, UPPER(IFNULL(request_method, 'UNKNOWN'))
+        ORDER BY totalCalls DESC, reportTime DESC
+    </select>
+
+    <select id="selectApiTrend" resultType="com.xixi.pojo.vo.admin.MonitorApiStatPageVo">
+        SELECT
+            'ALL' AS apiPath,
+            'ALL' AS method,
+            t.total_calls AS totalCalls,
+            t.error_calls AS errorCalls,
+            t.avg_response_time AS avgResponseTime,
+            t.p95_response_time AS p95ResponseTime,
+            t.report_time AS reportTime
+        FROM (
+                 SELECT
+                     DATE_FORMAT(created_time, '%Y-%m-%d %H:%i:00') AS bucket_time,
+                     COUNT(1) AS total_calls,
+                     SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS error_calls,
+                     ROUND(AVG(IFNULL(execute_time, 0)), 2) AS avg_response_time,
+                     ROUND(MAX(IFNULL(execute_time, 0)), 2) AS p95_response_time,
+                     MAX(created_time) AS report_time
+                 FROM operation_log
+                 GROUP BY DATE_FORMAT(created_time, '%Y-%m-%d %H:%i:00')
+                 ORDER BY bucket_time DESC
+                 LIMIT #{limitSize}
+             ) t
+        ORDER BY t.report_time DESC
+    </select>
+
+</mapper>

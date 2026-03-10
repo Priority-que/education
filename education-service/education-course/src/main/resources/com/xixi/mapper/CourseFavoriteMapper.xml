@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.CourseFavoriteMapper">
+
+    <!-- 分页查询收藏列表 -->
+    <select id="selectFavoritePage" resultType="com.xixi.pojo.vo.CourseFavoriteVo">
+        SELECT
+            id,
+            course_id     AS courseId,
+            user_id       AS userId,
+            created_time  AS createdTime
+        FROM course_favorite
+        <where>
+            <if test="q.courseId != null">
+                AND course_id = #{q.courseId}
+            </if>
+            <if test="q.userId != null">
+                AND user_id = #{q.userId}
+            </if>
+            <if test="q.beginTime != null and q.endTime != null">
+                AND created_time BETWEEN #{q.beginTime} AND #{q.endTime}
+            </if>
+        </where>
+        ORDER BY created_time DESC
+    </select>
+
+    <!-- 根据ID查询收藏 -->
+    <select id="getFavoriteById" resultType="com.xixi.pojo.vo.CourseFavoriteVo">
+        SELECT
+            id,
+            course_id     AS courseId,
+            user_id       AS userId,
+            created_time  AS createdTime
+        FROM course_favorite
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据ID列表批量删除 -->
+    <delete id="deleteByIds">
+        DELETE FROM course_favorite
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="countByCourseIdAndUserId" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM course_favorite
+        WHERE course_id = #{courseId}
+          AND user_id = #{userId}
+    </select>
+</mapper>

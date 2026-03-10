@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.EnterpriseVerificationMapper">
+
+    <select id="selectCurrentByEnterprise" resultType="com.xixi.entity.EnterpriseVerification">
+        SELECT *
+        FROM enterprise_verification
+        WHERE enterprise_id = #{enterpriseId}
+        ORDER BY submitted_time DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectHistoryPage" resultType="com.xixi.entity.EnterpriseVerification">
+        SELECT *
+        FROM enterprise_verification
+        <where>
+            <if test="enterpriseId != null">
+                AND enterprise_id = #{enterpriseId}
+            </if>
+        </where>
+        ORDER BY submitted_time DESC, id DESC
+    </select>
+
+</mapper>

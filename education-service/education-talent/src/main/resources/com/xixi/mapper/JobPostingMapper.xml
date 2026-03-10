@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.JobPostingMapper">
+
+    <select id="selectJobPage" resultType="com.xixi.entity.JobPosting">
+        SELECT *
+        FROM job_posting
+        WHERE enterprise_id = #{enterpriseId}
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="jobType != null and jobType != ''">
+            AND job_type = #{jobType}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                job_title LIKE CONCAT('%', #{keyword}, '%')
+                OR job_category LIKE CONCAT('%', #{keyword}, '%')
+                OR work_location LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY updated_time DESC, id DESC
+    </select>
+
+    <select id="selectByEnterpriseAndId" resultType="com.xixi.entity.JobPosting">
+        SELECT *
+        FROM job_posting
+        WHERE enterprise_id = #{enterpriseId}
+          AND id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectPublicJobPage" resultType="java.util.LinkedHashMap">
+        SELECT
+            jp.id AS jobId,
+            jp.job_title AS jobTitle,
+            jp.job_type AS jobType,
+            jp.job_category AS jobCategory,
+            jp.work_location AS workLocation,
+            jp.salary_range AS salaryRange,
+            jp.education_requirement AS educationRequirement,
+            jp.experience_requirement AS experienceRequirement,
+            jp.recruitment_number AS recruitmentNumber,
+            CASE
+                WHEN jp.application_deadline IS NULL THEN NULL
+                ELSE CAST(CONCAT(DATE_FORMAT(jp.application_deadline, '%Y-%m-%d'), ' 23:59:59') AS DATETIME)
+            END AS applicationDeadline,
+            jp.status AS status,
+            IFNULL(jp.apply_count, 0) AS applyCount,
+            IFNULL(jp.view_count, 0) AS viewCount,
+            jp.enterprise_id AS enterpriseId,
+            e.company_name AS enterpriseName,
+            u.avatar AS enterpriseLogo,
+            CASE WHEN e.verification_status = 2 THEN 1 ELSE 0 END AS enterpriseVerified,
+            CASE
+                WHEN latest_app.id IS NULL THEN 0
+                WHEN latest_app.status IN ('WITHDRAWN', 'CLOSED', 'REJECTED') THEN 0
+                ELSE 1
+            END AS studentApplied,
+            latest_app.id AS studentApplicationId,
+            latest_app.match_score AS matchScore,
+            COALESCE(jp.publish_time, jp.created_time) AS publishTime
+        FROM job_posting jp
+        LEFT JOIN education_user_db.enterprises e ON e.id = jp.enterprise_id
+        LEFT JOIN education_user_db.users u ON u.id = e.user_id
+        LEFT JOIN (
+            SELECT ja.*
+            FROM job_application ja
+            INNER JOIN (
+                SELECT job_id, MAX(id) AS max_id
+                FROM job_application
+                WHERE student_id = #{studentId}
+                GROUP BY job_id
+            ) latest ON latest.max_id = ja.id
+        ) latest_app ON latest_app.job_id = jp.id
+        WHERE 1 = 1
+        <if test="onlyOpen == null or onlyOpen">
+            AND jp.status = 'PUBLISHED'
+            AND (jp.application_deadline IS NULL OR jp.application_deadline &gt;= CURRENT_DATE())
+        </if>
+        <if test="jobType != null and jobType != ''">
+            AND jp.job_type = #{jobType}
+        </if>
+        <if test="educationRequirement != null and educationRequirement != ''">
+            AND jp.education_requirement = #{educationRequirement}
+        </if>
+        <if test="city != null and city != ''">
+            AND (
+                jp.work_location LIKE CONCAT('%', #{city}, '%')
+                OR e.city LIKE CONCAT('%', #{city}, '%')
+            )
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                jp.job_title LIKE CONCAT('%', #{keyword}, '%')
+                OR jp.job_category LIKE CONCAT('%', #{keyword}, '%')
+                OR e.company_name LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY COALESCE(jp.publish_time, jp.created_time) DESC, jp.id DESC
+    </select>
+
+    <select id="selectPublicJobDetail" resultType="java.util.LinkedHashMap">
+        SELECT
+            jp.id AS jobId,
+            jp.job_title AS jobTitle,
+            jp.job_type AS jobType,
+            jp.job_category AS jobCategory,
+            jp.work_location AS workLocation,
+            jp.salary_range AS salaryRange,
+            jp.education_requirement AS educationRequirement,
+            jp.experience_requirement AS experienceRequirement,
+            jp.recruitment_number AS recruitmentNumber,
+            CASE
+                WHEN jp.application_deadline IS NULL THEN NULL
+                ELSE CAST(CONCAT(DATE_FORMAT(jp.application_deadline, '%Y-%m-%d'), ' 23:59:59') AS DATETIME)
+            END AS applicationDeadline,
+            jp.contact_email AS contactEmail,
+            jp.contact_phone AS contactPhone,
+            jp.job_description AS jobDescription,
+            jp.requirements AS requirements,
+            jp.benefits AS benefits,
+            jp.status AS status,
+            IFNULL(jp.apply_count, 0) AS applyCount,
+            IFNULL(jp.view_count, 0) AS viewCount,
+            e.id AS enterpriseId,
+            e.company_name AS enterpriseName,
+            u.avatar AS enterpriseLogo,
+            e.industry AS industry,
+            e.city AS city,
+            CASE WHEN e.verification_status = 2 THEN 1 ELSE 0 END AS enterpriseVerified,
+            e.company_introduction AS enterpriseIntroduction,
+            e.contact_person AS contactName,
+            u.phone AS contactUserPhone,
+            u.email AS contactUserEmail,
+            CASE
+                WHEN latest_app.id IS NULL THEN 0
+                WHEN latest_app.status IN ('WITHDRAWN', 'CLOSED', 'REJECTED') THEN 0
+                ELSE 1
+            END AS studentApplied,
+            latest_app.id AS studentApplicationId,
+            latest_app.match_score AS matchScore
+        FROM job_posting jp
+        LEFT JOIN education_user_db.enterprises e ON e.id = jp.enterprise_id
+        LEFT JOIN education_user_db.users u ON u.id = e.user_id
+        LEFT JOIN (
+            SELECT ja.*
+            FROM job_application ja
+            INNER JOIN (
+                SELECT job_id, MAX(id) AS max_id
+                FROM job_application
+                WHERE student_id = #{studentId}
+                GROUP BY job_id
+            ) latest ON latest.max_id = ja.id
+        ) latest_app ON latest_app.job_id = jp.id
+        WHERE jp.id = #{jobId}
+        LIMIT 1
+    </select>
+
+    <select id="selectTalentJobDetail" resultType="java.util.LinkedHashMap">
+        SELECT
+            jp.id AS id,
+            jp.enterprise_id AS enterpriseId,
+            jp.job_title AS jobTitle,
+            jp.job_type AS jobType,
+            jp.job_category AS jobCategory,
+            jp.work_location AS workLocation,
+            jp.salary_range AS salaryRange,
+            jp.experience_requirement AS experienceRequirement,
+            jp.education_requirement AS educationRequirement,
+            jp.job_description AS jobDescription,
+            jp.requirements AS requirements,
+            jp.benefits AS benefits,
+            jp.recruitment_number AS recruitmentNumber,
+            jp.application_deadline AS applicationDeadline,
+            jp.contact_email AS contactEmail,
+            jp.contact_phone AS contactPhone,
+            jp.status AS status,
+            jp.publish_time AS publishTime,
+            jp.view_count AS viewCount,
+            IFNULL(stat.totalCount, IFNULL(jp.apply_count, 0)) AS applyCount,
+            IFNULL(stat.pendingCount, 0) AS pendingCount,
+            IFNULL(stat.reviewingCount, 0) AS reviewingCount,
+            IFNULL(stat.interviewCount, 0) AS interviewCount,
+            IFNULL(stat.offerCount, 0) AS offerCount,
+            IFNULL(stat.hiredCount, 0) AS hiredCount,
+            IFNULL(stat.rejectedCount, 0) AS rejectedCount,
+            jp.created_time AS createdTime,
+            jp.updated_time AS updatedTime
+        FROM job_posting jp
+        LEFT JOIN (
+            SELECT
+                job_id,
+                COUNT(1) AS totalCount,
+                SUM(CASE WHEN status = 'SUBMITTED' THEN 1 ELSE 0 END) AS pendingCount,
+                SUM(CASE WHEN status = 'REVIEWING' THEN 1 ELSE 0 END) AS reviewingCount,
+                SUM(CASE WHEN status IN ('INTERVIEW_INVITED', 'INTERVIEW_SCHEDULED', 'INTERVIEW_FINISHED') THEN 1 ELSE 0 END) AS interviewCount,
+                SUM(CASE WHEN status = 'OFFER_SENT' THEN 1 ELSE 0 END) AS offerCount,
+                SUM(CASE WHEN status = 'HIRED' THEN 1 ELSE 0 END) AS hiredCount,
+                SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) AS rejectedCount
+            FROM job_application
+            WHERE enterprise_id = #{enterpriseId}
+            GROUP BY job_id
+        ) stat ON stat.job_id = jp.id
+        WHERE jp.enterprise_id = #{enterpriseId}
+          AND jp.id = #{jobId}
+        LIMIT 1
+    </select>
+
+    <update id="updateJobByEnterprise">
+        UPDATE job_posting
+        SET job_title = #{jobTitle},
+            job_type = #{jobType},
+            job_category = #{jobCategory},
+            work_location = #{workLocation},
+            salary_range = #{salaryRange},
+            experience_requirement = #{experienceRequirement},
+            education_requirement = #{educationRequirement},
+            job_description = #{jobDescription},
+            requirements = #{requirements},
+            benefits = #{benefits},
+            recruitment_number = #{recruitmentNumber},
+            application_deadline = #{applicationDeadline},
+            contact_email = #{contactEmail},
+            contact_phone = #{contactPhone},
+            updated_time = #{updatedTime}
+        WHERE id = #{id}
+          AND enterprise_id = #{enterpriseId}
+    </update>
+
+    <update id="updateStatusByEnterprise">
+        UPDATE job_posting
+        SET status = #{status},
+            publish_time = CASE
+                WHEN #{publishTime} IS NULL THEN publish_time
+                ELSE #{publishTime}
+            END,
+            updated_time = #{updatedTime}
+        WHERE id = #{id}
+          AND enterprise_id = #{enterpriseId}
+    </update>
+
+    <update id="incrementViewCount">
+        UPDATE job_posting
+        SET view_count = IFNULL(view_count, 0) + 1,
+            updated_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="incrementApplyCount">
+        UPDATE job_posting
+        SET apply_count = IFNULL(apply_count, 0) + #{delta},
+            updated_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByEnterpriseAndId">
+        DELETE
+        FROM job_posting
+        WHERE enterprise_id = #{enterpriseId}
+          AND id = #{id}
+    </delete>
+
+    <select id="selectDistinctEnterpriseIds" resultType="java.lang.Long">
+        SELECT DISTINCT enterprise_id
+        FROM job_posting
+        WHERE enterprise_id IS NOT NULL
+    </select>
+
+</mapper>

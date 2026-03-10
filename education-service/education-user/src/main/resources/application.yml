@@ -1,0 +1,51 @@
+server:
+  port: 8702
+spring:
+  application:
+    name: education-user
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://192.168.108.230:3306/education_user_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  config:
+    import: nacos:education-common.yml
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.108.230:8848
+        username: nacos
+        password: nacos
+      config:
+        server-addr: 192.168.108.230:8848
+        username: nacos
+        password: nacos
+
+auth:
+  jwt:
+    issuer: education-platform
+    secret: education-platform-please-change-this-secret-key-1234567890
+    access-expire-seconds: 1800
+    refresh-expire-seconds: 604800
+  sms-auth:
+    aliyun:
+      access-key-id: ${ALIYUN_ACCESS_KEY_ID:}
+      access-key-secret: ${ALIYUN_ACCESS_KEY_SECRET:}
+      region-id: cn-hangzhou
+      endpoint: dypnsapi.aliyuncs.com
+      country-code: 86
+      scheme-name:
+      sign-name:
+      template-code:
+      template-param: '{"code":"##code##","min":"5"}'
+      use-code-type: true
+      code-type: 1
+      code-length: 6
+      interval:
+      valid-time:
+      duplicate-policy:
+      return-verify-code:
+      connect-timeout-ms: 5000
+      read-timeout-ms: 5000
+      default-role: 2
+      username-prefix: u

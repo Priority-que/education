@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.LearningRecordMapper">
+
+    <!-- 学习记录结果映射 -->
+    <resultMap id="LearningRecordVoMap" type="com.xixi.pojo.vo.LearningRecordVo">
+        <id column="id" property="id"/>
+        <result column="student_id" property="studentId"/>
+        <result column="course_id" property="courseId"/>
+        <result column="chapter_id" property="chapterId"/>
+        <result column="video_id" property="videoId"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="duration" property="duration"/>
+        <result column="video_progress" property="videoProgress"/>
+        <result column="last_position" property="lastPosition"/>
+        <result column="created_time" property="createdTime"/>
+    </resultMap>
+
+    <!-- 分页查询学习记录 -->
+    <select id="selectLearningRecordPage" resultMap="LearningRecordVoMap">
+        SELECT
+            lr.id,
+            lr.student_id,
+            lr.course_id,
+            lr.chapter_id,
+            lr.video_id,
+            lr.start_time,
+            lr.end_time,
+            lr.duration,
+            lr.video_progress,
+            lr.last_position,
+            lr.created_time
+        FROM learning_record lr
+        <where>
+            <if test="q.studentId != null">
+                AND lr.student_id = #{q.studentId}
+            </if>
+            <if test="q.courseId != null">
+                AND lr.course_id = #{q.courseId}
+            </if>
+            <if test="q.chapterId != null">
+                AND lr.chapter_id = #{q.chapterId}
+            </if>
+            <if test="q.videoId != null">
+                AND lr.video_id = #{q.videoId}
+            </if>
+            <if test="q.startTime != null">
+                AND lr.created_time >= #{q.startTime}
+            </if>
+            <if test="q.endTime != null">
+                AND lr.created_time &lt;= #{q.endTime}
+            </if>
+        </where>
+        ORDER BY lr.created_time DESC
+    </select>
+
+    <!-- 查询最新的学习记录 -->
+    <select id="selectLatestByStudentAndVideo" resultType="com.xixi.entity.LearningRecord">
+        SELECT
+            id,
+            student_id,
+            course_id,
+            chapter_id,
+            video_id,
+            start_time,
+            end_time,
+            duration,
+            video_progress,
+            last_position,
+            created_time
+        FROM learning_record
+        WHERE student_id = #{studentId}
+          AND course_id = #{courseId}
+          AND video_id = #{videoId}
+        ORDER BY created_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- 查询学生在某课程下的全部学习记录 -->
+    <select id="selectByStudentAndCourse" resultType="com.xixi.entity.LearningRecord">
+        SELECT
+            id,
+            student_id,
+            course_id,
+            chapter_id,
+            video_id,
+            start_time,
+            end_time,
+            duration,
+            video_progress,
+            last_position,
+            created_time
+        FROM learning_record
+        WHERE student_id = #{studentId}
+          AND course_id = #{courseId}
+        ORDER BY created_time DESC, id DESC
+    </select>
+
+    <!-- 查询学生在某课程下每个视频的最新学习记录 -->
+    <select id="selectLatestByStudentAndCourse" resultType="com.xixi.entity.LearningRecord">
+        SELECT
+            lr.id,
+            lr.student_id,
+            lr.course_id,
+            lr.chapter_id,
+            lr.video_id,
+            lr.start_time,
+            lr.end_time,
+            lr.duration,
+            lr.video_progress,
+            lr.last_position,
+            lr.created_time
+        FROM learning_record lr
+                 INNER JOIN (
+            SELECT
+                video_id,
+                MAX(id) AS max_id
+            FROM learning_record
+            WHERE student_id = #{studentId}
+              AND course_id = #{courseId}
+            GROUP BY video_id
+        ) latest ON lr.id = latest.max_id
+        ORDER BY lr.created_time DESC, lr.id DESC
+    </select>
+
+    <!-- 教师端查询课程下学生各视频最新学习记录 -->
+    <select id="selectLatestMonitorRecords" resultType="com.xixi.entity.LearningRecord">
+        SELECT
+            lr.id,
+            lr.student_id,
+            lr.course_id,
+            lr.chapter_id,
+            lr.video_id,
+            lr.start_time,
+            lr.end_time,
+            lr.duration,
+            lr.video_progress,
+            lr.last_position,
+            lr.created_time
+        FROM learning_record lr
+            INNER JOIN (
+                SELECT
+                    student_id,
+                    video_id,
+                    MAX(id) AS max_id
+                FROM learning_record
+                WHERE course_id = #{courseId}
+                <if test="studentId != null">
+                    AND student_id = #{studentId}
+                </if>
+                <if test="chapterId != null">
+                    AND chapter_id = #{chapterId}
+                </if>
+                GROUP BY student_id, video_id
+            ) latest ON lr.id = latest.max_id
+        ORDER BY lr.student_id ASC, lr.chapter_id ASC, lr.video_id ASC
+    </select>
+
+    <!-- 教师端统计课程下学生学习时长 -->
+    <select id="selectStudentStudyTimeStats" resultType="java.util.Map">
+        SELECT
+            student_id AS studentId,
+            COALESCE(SUM(duration), 0) AS totalStudyTime,
+            MAX(end_time) AS lastStudyTime
+        FROM learning_record
+        WHERE course_id = #{courseId}
+        <if test="studentId != null">
+            AND student_id = #{studentId}
+        </if>
+        <if test="chapterId != null">
+            AND chapter_id = #{chapterId}
+        </if>
+        GROUP BY student_id
+    </select>
+
+    <!-- 教师端统计课程下章节学习时长 -->
+    <select id="selectChapterStudyTimeStats" resultType="java.util.Map">
+        SELECT
+            chapter_id AS chapterId,
+            COALESCE(SUM(duration), 0) AS totalStudyTime
+        FROM learning_record
+        WHERE course_id = #{courseId}
+        <if test="studentId != null">
+            AND student_id = #{studentId}
+        </if>
+        <if test="chapterId != null">
+            AND chapter_id = #{chapterId}
+        </if>
+        GROUP BY chapter_id
+    </select>
+
+</mapper>

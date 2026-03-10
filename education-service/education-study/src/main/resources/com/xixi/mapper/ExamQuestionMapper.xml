@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.ExamQuestionMapper">
+
+    <!-- 查询测验的所有题目（学生端，不包含正确答案） -->
+    <select id="selectQuestionsByExamId" resultType="com.xixi.entity.ExamQuestion">
+        SELECT
+            id,
+            exam_id,
+            question_type,
+            question_content,
+            options,
+            score,
+            sort_order,
+            created_time
+        FROM exam_question
+        WHERE exam_id = #{examId}
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <!-- 查询测验的所有题目（包含正确答案，用于查看结果） -->
+    <select id="selectQuestionsWithAnswerByExamId" resultType="com.xixi.entity.ExamQuestion">
+        SELECT
+            id,
+            exam_id,
+            question_type,
+            question_content,
+            options,
+            correct_answer,
+            score,
+            sort_order,
+            created_time
+        FROM exam_question
+        WHERE exam_id = #{examId}
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <!-- 教师端根据题目ID查询题目 -->
+    <select id="selectTeacherQuestionById" resultType="com.xixi.entity.ExamQuestion">
+        SELECT
+            eq.id,
+            eq.exam_id,
+            eq.question_type,
+            eq.question_content,
+            eq.options,
+            eq.correct_answer,
+            eq.score,
+            eq.sort_order,
+            eq.created_time
+        FROM exam_question eq
+        INNER JOIN exam e ON e.id = eq.exam_id
+        WHERE eq.id = #{questionId}
+          AND e.teacher_id = #{teacherId}
+    </select>
+
+    <!-- 根据测验ID统计题目数 -->
+    <select id="countByExamId" resultType="int">
+        SELECT COUNT(1)
+        FROM exam_question
+        WHERE exam_id = #{examId}
+    </select>
+
+    <!-- 根据测验ID删除题目 -->
+    <delete id="deleteByExamId">
+        DELETE
+        FROM exam_question
+        WHERE exam_id = #{examId}
+    </delete>
+
+</mapper>

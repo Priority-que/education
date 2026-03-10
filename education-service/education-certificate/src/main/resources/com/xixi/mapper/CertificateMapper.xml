@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.CertificateMapper">
+
+    <select id="selectMyCertificatePage" resultType="com.xixi.entity.Certificate">
+        SELECT *
+        FROM certificate
+        WHERE student_id = #{studentId}
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="courseId != null">
+            AND course_id = #{courseId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                certificate_name LIKE CONCAT('%', #{keyword}, '%')
+                OR certificate_number LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY issuing_date DESC, created_time DESC
+    </select>
+
+    <select id="selectByCertificateNumber" resultType="com.xixi.entity.Certificate">
+        SELECT *
+        FROM certificate
+        WHERE certificate_number = #{certificateNumber}
+        LIMIT 1
+    </select>
+
+    <select id="countByStudentAndCourseAndStatus" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM certificate
+        WHERE student_id = #{studentId}
+          AND course_id = #{courseId}
+          AND status = #{status}
+    </select>
+
+    <select id="selectTeacherIssuedPage" resultType="com.xixi.entity.Certificate">
+        SELECT *
+        FROM certificate
+        WHERE teacher_id = #{teacherId}
+        <if test="courseId != null">
+            AND course_id = #{courseId}
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        ORDER BY issuing_date DESC, created_time DESC
+    </select>
+
+    <select id="countByCertificateNumber" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM certificate
+        WHERE certificate_number = #{certificateNumber}
+    </select>
+
+    <select id="selectLatestHash" resultType="java.lang.String">
+        SELECT hash
+        FROM certificate
+        ORDER BY created_time DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectByIds" resultType="com.xixi.entity.Certificate">
+        SELECT *
+        FROM certificate
+        <where>
+            <if test="ids != null and ids.size > 0">
+                id IN
+                <foreach collection="ids" item="id" open="(" close=")" separator=",">
+                    #{id}
+                </foreach>
+            </if>
+            <if test="ids == null or ids.size == 0">
+                1 = 0
+            </if>
+        </where>
+    </select>
+
+    <select id="selectByStudentIdAndStatus" resultType="com.xixi.entity.Certificate">
+        SELECT *
+        FROM certificate
+        WHERE student_id = #{studentId}
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        ORDER BY issuing_date DESC, created_time DESC
+    </select>
+
+    <update id="increaseVerificationStats">
+        UPDATE certificate
+        SET verification_count = IFNULL(verification_count, 0) + 1,
+            last_verification_time = #{lastVerificationTime},
+            updated_time = #{updatedTime}
+        WHERE id = #{certificateId}
+    </update>
+
+</mapper>

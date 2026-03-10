@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.EnterpriseTalentStatisticsMapper">
+
+    <select id="selectByEnterpriseAndDate" resultType="com.xixi.entity.EnterpriseTalentStatistics">
+        SELECT *
+        FROM enterprise_talent_statistics
+        WHERE enterprise_id = #{enterpriseId}
+          AND stat_date = #{statDate}
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectLatestByEnterpriseId" resultType="com.xixi.entity.EnterpriseTalentStatistics">
+        SELECT *
+        FROM enterprise_talent_statistics
+        WHERE enterprise_id = #{enterpriseId}
+        ORDER BY stat_date DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectTrendByEnterpriseAndDateRange" resultType="com.xixi.entity.EnterpriseTalentStatistics">
+        SELECT *
+        FROM enterprise_talent_statistics
+        WHERE enterprise_id = #{enterpriseId}
+          AND stat_date &gt;= #{startDate}
+          AND stat_date &lt;= #{endDate}
+        ORDER BY stat_date ASC, id ASC
+    </select>
+
+    <select id="selectDistinctEnterpriseIds" resultType="java.lang.Long">
+        SELECT DISTINCT enterprise_id
+        FROM enterprise_talent_statistics
+        WHERE enterprise_id IS NOT NULL
+    </select>
+
+    <update id="increaseDailyMetric">
+        UPDATE enterprise_talent_statistics
+        SET total_favorites = GREATEST(IFNULL(total_favorites, 0) + IFNULL(#{totalFavoritesDelta}, 0), 0),
+            new_favorites = GREATEST(IFNULL(new_favorites, 0) + IFNULL(#{newFavoritesDelta}, 0), 0),
+            total_contacts = GREATEST(IFNULL(total_contacts, 0) + IFNULL(#{totalContactsDelta}, 0), 0),
+            new_contacts = GREATEST(IFNULL(new_contacts, 0) + IFNULL(#{newContactsDelta}, 0), 0),
+            total_interviews = GREATEST(IFNULL(total_interviews, 0) + IFNULL(#{totalInterviewsDelta}, 0), 0),
+            new_interviews = GREATEST(IFNULL(new_interviews, 0) + IFNULL(#{newInterviewsDelta}, 0), 0),
+            total_hires = GREATEST(IFNULL(total_hires, 0) + IFNULL(#{totalHiresDelta}, 0), 0),
+            new_hires = GREATEST(IFNULL(new_hires, 0) + IFNULL(#{newHiresDelta}, 0), 0),
+            total_searches = GREATEST(IFNULL(total_searches, 0) + IFNULL(#{totalSearchesDelta}, 0), 0)
+        WHERE enterprise_id = #{enterpriseId}
+          AND stat_date = #{statDate}
+    </update>
+
+</mapper>

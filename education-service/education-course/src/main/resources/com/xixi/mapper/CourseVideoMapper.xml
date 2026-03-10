@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.CourseVideoMapper">
+
+    <!-- 分页查询视频列表 -->
+    <select id="selectVideoPage" resultType="com.xixi.pojo.vo.CourseVideoVo">
+        SELECT
+            id,
+            chapter_id    AS chapterId,
+            video_name    AS videoName,
+            video_url     AS videoUrl,
+            cover_image   AS coverImage,
+            duration,
+            file_size     AS fileSize,
+            video_format  AS videoFormat,
+            resolution,
+            playback_type AS playbackType,
+            master_playlist_url AS masterPlaylistUrl,
+            renditions,
+            default_resolution AS defaultResolution,
+            sort_order    AS sortOrder,
+            status,
+            view_count    AS viewCount,
+            created_time  AS createdTime,
+            updated_time  AS updatedTime
+        FROM course_video
+        <where>
+            <if test="q.chapterId != null">
+                AND chapter_id = #{q.chapterId}
+            </if>
+            <if test="q.videoName != null and q.videoName != ''">
+                AND video_name LIKE CONCAT('%', #{q.videoName}, '%')
+            </if>
+            <if test="q.videoFormat != null and q.videoFormat != ''">
+                AND video_format = #{q.videoFormat}
+            </if>
+            <if test="q.status != null">
+                AND status = #{q.status}
+            </if>
+            <if test="q.beginTime != null and q.endTime != null">
+                AND created_time BETWEEN #{q.beginTime} AND #{q.endTime}
+            </if>
+        </where>
+        ORDER BY sort_order ASC, created_time DESC
+    </select>
+
+    <!-- 根据ID查询视频 -->
+    <select id="getVideoById" resultType="com.xixi.pojo.vo.CourseVideoVo">
+        SELECT
+            id,
+            chapter_id    AS chapterId,
+            video_name    AS videoName,
+            video_url     AS videoUrl,
+            cover_image   AS coverImage,
+            duration,
+            file_size     AS fileSize,
+            video_format  AS videoFormat,
+            resolution,
+            playback_type AS playbackType,
+            master_playlist_url AS masterPlaylistUrl,
+            renditions,
+            default_resolution AS defaultResolution,
+            sort_order    AS sortOrder,
+            status,
+            view_count    AS viewCount,
+            created_time  AS createdTime,
+            updated_time  AS updatedTime
+        FROM course_video
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据ID列表批量删除 -->
+    <delete id="deleteByIds">
+        DELETE FROM course_video
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 根据章节ID列表查询视频列表（有序） -->
+    <select id="selectVideosByChapterIds" resultType="com.xixi.pojo.vo.CourseVideoVo">
+        SELECT
+            id,
+            chapter_id    AS chapterId,
+            video_name    AS videoName,
+            video_url     AS videoUrl,
+            cover_image   AS coverImage,
+            duration,
+            file_size     AS fileSize,
+            video_format  AS videoFormat,
+            resolution,
+            playback_type AS playbackType,
+            master_playlist_url AS masterPlaylistUrl,
+            renditions,
+            default_resolution AS defaultResolution,
+            sort_order    AS sortOrder,
+            status,
+            view_count    AS viewCount,
+            created_time  AS createdTime,
+            updated_time  AS updatedTime
+        FROM course_video
+        WHERE chapter_id IN
+        <foreach collection="chapterIds" item="chapterId" open="(" separator="," close=")">
+            #{chapterId}
+        </foreach>
+        ORDER BY chapter_id ASC, sort_order ASC, id ASC
+    </select>
+</mapper>

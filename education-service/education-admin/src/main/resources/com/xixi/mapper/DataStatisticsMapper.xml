@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.DataStatisticsMapper">
+
+    <select id="selectLatest" resultType="com.xixi.entity.DataStatistics">
+        SELECT *
+        FROM data_statistics
+        ORDER BY stat_date DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectTrend" resultType="com.xixi.pojo.vo.admin.DashboardTrendPointVo">
+        SELECT
+            stat_date AS statDate,
+            <choose>
+                <when test="metricType == 'TOTAL_USERS'">CAST(total_users AS DECIMAL(18,2))</when>
+                <when test="metricType == 'ACTIVE_USERS'">CAST(active_users AS DECIMAL(18,2))</when>
+                <when test="metricType == 'TOTAL_COURSES'">CAST(total_courses AS DECIMAL(18,2))</when>
+                <when test="metricType == 'TOTAL_CERTIFICATES'">CAST(total_certificates AS DECIMAL(18,2))</when>
+                <when test="metricType == 'TOTAL_RESUMES'">CAST(total_resumes AS DECIMAL(18,2))</when>
+                <when test="metricType == 'TOTAL_JOBS'">CAST(total_jobs AS DECIMAL(18,2))</when>
+                <otherwise>CAST(total_users AS DECIMAL(18,2))</otherwise>
+            </choose> AS value
+        FROM data_statistics
+        WHERE stat_date <![CDATA[ >= ]]> #{startDate}
+          AND stat_date <![CDATA[ <= ]]> #{endDate}
+        ORDER BY stat_date ASC
+    </select>
+
+    <delete id="deleteByDateRange">
+        DELETE FROM data_statistics
+        WHERE stat_date <![CDATA[ >= ]]> #{startDate}
+          AND stat_date <![CDATA[ <= ]]> #{endDate}
+    </delete>
+
+    <select id="selectByStatDate" resultType="com.xixi.entity.DataStatistics">
+        SELECT *
+        FROM data_statistics
+        WHERE stat_date = #{statDate}
+        LIMIT 1
+    </select>
+
+</mapper>

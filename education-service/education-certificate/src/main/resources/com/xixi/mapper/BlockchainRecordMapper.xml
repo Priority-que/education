@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.BlockchainRecordMapper">
+
+    <select id="selectByBlockHeight" resultType="com.xixi.entity.BlockchainRecord">
+        SELECT *
+        FROM blockchain_record
+        WHERE block_height = #{blockHeight}
+        LIMIT 1
+    </select>
+
+    <select id="selectByCertificateHash" resultType="com.xixi.entity.BlockchainRecord">
+        SELECT *
+        FROM blockchain_record
+        WHERE certificate_hash = #{certificateHash}
+        LIMIT 1
+    </select>
+
+    <select id="selectLatestBlock" resultType="com.xixi.entity.BlockchainRecord">
+        SELECT *
+        FROM blockchain_record
+        ORDER BY block_height DESC
+        LIMIT 1
+    </select>
+
+</mapper>

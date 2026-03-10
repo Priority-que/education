@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.BlockchainNodeMapper">
+
+    <select id="selectNodePage" resultType="com.xixi.pojo.vo.admin.BlockchainNodeVo">
+        SELECT
+            id AS nodeId,
+            node_name AS nodeName,
+            endpoint,
+            status,
+            block_height AS blockHeight,
+            last_sync_time AS lastSyncTime,
+            created_time AS createdTime,
+            updated_time AS updatedTime
+        FROM blockchain_node
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    node_name LIKE CONCAT('%', #{keyword}, '%')
+                    OR endpoint LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY updated_time DESC, id DESC
+    </select>
+
+    <select id="selectNodeDetail" resultType="com.xixi.pojo.vo.admin.BlockchainNodeVo">
+        SELECT
+            id AS nodeId,
+            node_name AS nodeName,
+            endpoint,
+            status,
+            block_height AS blockHeight,
+            last_sync_time AS lastSyncTime,
+            created_time AS createdTime,
+            updated_time AS updatedTime
+        FROM blockchain_node
+        WHERE id = #{nodeId}
+        LIMIT 1
+    </select>
+
+</mapper>

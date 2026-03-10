@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.CertificateVerificationMapper">
+
+    <select id="selectVerifyHistoryPage" resultType="com.xixi.entity.CertificateVerification">
+        SELECT *
+        FROM certificate_verification
+        <where>
+            <if test="isAdmin == null or isAdmin == false">
+                verifier_id = #{verifierId}
+                AND verifier_type = #{verifierType}
+            </if>
+            <if test="verificationResult != null and verificationResult != ''">
+                AND verification_result = #{verificationResult}
+            </if>
+            <if test="verificationMethod != null and verificationMethod != ''">
+                AND verification_method = #{verificationMethod}
+            </if>
+        </where>
+        ORDER BY verification_time DESC, id DESC
+    </select>
+
+</mapper>

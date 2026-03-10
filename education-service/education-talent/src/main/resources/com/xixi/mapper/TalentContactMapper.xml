@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.TalentContactMapper">
+
+    <select id="selectContactPage" resultType="java.util.LinkedHashMap">
+        SELECT
+            tc.id AS contactId,
+            tc.enterprise_id AS enterpriseId,
+            tc.student_id AS studentId,
+            tc.source_type AS sourceType,
+            tc.application_id AS applicationId,
+            tc.job_id AS jobId,
+            jp.job_title AS jobTitle,
+            tc.name AS name,
+            tc.phone AS phone,
+            tc.email AS email,
+            tc.wechat AS wechat,
+            tc.position AS position,
+            tc.status AS status,
+            tc.latest_status AS latestStatus,
+            tc.last_contact_time AS latestCommunicationTime,
+            tc.remark AS remark,
+            tc.created_time AS createdTime,
+            tc.updated_time AS updatedTime
+        FROM talent_contact tc
+        LEFT JOIN job_posting jp ON jp.id = tc.job_id
+        WHERE tc.enterprise_id = #{enterpriseId}
+        <if test="studentId != null">
+            AND tc.student_id = #{studentId}
+        </if>
+        <if test="applicationId != null">
+            AND tc.application_id = #{applicationId}
+        </if>
+        <if test="jobId != null">
+            AND tc.job_id = #{jobId}
+        </if>
+        <if test="sourceType != null and sourceType != ''">
+            AND tc.source_type = #{sourceType}
+        </if>
+        <if test="status != null and status != ''">
+            AND tc.status = #{status}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                tc.name LIKE CONCAT('%', #{keyword}, '%')
+                OR tc.phone LIKE CONCAT('%', #{keyword}, '%')
+                OR tc.email LIKE CONCAT('%', #{keyword}, '%')
+                OR tc.wechat LIKE CONCAT('%', #{keyword}, '%')
+                OR tc.position LIKE CONCAT('%', #{keyword}, '%')
+                OR jp.job_title LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY tc.last_contact_time DESC, tc.updated_time DESC, tc.id DESC
+    </select>
+
+    <select id="selectByEnterpriseAndId" resultType="com.xixi.entity.TalentContact">
+        SELECT *
+        FROM talent_contact
+        WHERE enterprise_id = #{enterpriseId}
+          AND id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectByEnterpriseAndApplication" resultType="com.xixi.entity.TalentContact">
+        SELECT *
+        FROM talent_contact
+        WHERE enterprise_id = #{enterpriseId}
+          AND application_id = #{applicationId}
+        LIMIT 1
+    </select>
+
+    <delete id="deleteByEnterpriseAndId">
+        DELETE FROM talent_contact
+        WHERE enterprise_id = #{enterpriseId}
+          AND id = #{id}
+    </delete>
+
+    <update id="updateFromApplication">
+        UPDATE talent_contact
+        SET job_id = #{jobId},
+            name = #{name},
+            phone = #{phone},
+            email = #{email},
+            position = #{position},
+            status = #{status},
+            latest_status = #{latestStatus},
+            last_contact_time = #{lastContactTime},
+            updated_time = #{updatedTime}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

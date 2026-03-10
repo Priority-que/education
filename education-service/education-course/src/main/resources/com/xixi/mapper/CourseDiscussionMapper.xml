@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.CourseDiscussionMapper">
+
+    <!-- 分页查询讨论列表 -->
+    <select id="selectDiscussionPage" resultType="com.xixi.pojo.vo.CourseDiscussionVo">
+        SELECT
+            id,
+            course_id        AS courseId,
+            chapter_id       AS chapterId,
+            user_id          AS userId,
+            parent_id        AS parentId,
+            content,
+            like_count       AS likeCount,
+            reply_count      AS replyCount,
+            is_teacher_reply AS isTeacherReply,
+            status,
+            created_time     AS createdTime,
+            updated_time     AS updatedTime
+        FROM course_discussion
+        <where>
+            <if test="q.courseId != null">
+                AND course_id = #{q.courseId}
+            </if>
+            <if test="q.chapterId != null">
+                AND chapter_id = #{q.chapterId}
+            </if>
+            <if test="q.userId != null">
+                AND user_id = #{q.userId}
+            </if>
+            <if test="q.parentId != null">
+                AND parent_id = #{q.parentId}
+            </if>
+            <if test="q.isTeacherReply != null">
+                AND is_teacher_reply = #{q.isTeacherReply}
+            </if>
+            <if test="q.status != null">
+                AND status = #{q.status}
+            </if>
+            <if test="q.beginTime != null and q.endTime != null">
+                AND created_time BETWEEN #{q.beginTime} AND #{q.endTime}
+            </if>
+        </where>
+        ORDER BY created_time DESC
+    </select>
+
+    <!-- 根据ID查询讨论 -->
+    <select id="getDiscussionById" resultType="com.xixi.pojo.vo.CourseDiscussionVo">
+        SELECT
+            id,
+            course_id        AS courseId,
+            chapter_id       AS chapterId,
+            user_id          AS userId,
+            parent_id        AS parentId,
+            content,
+            like_count       AS likeCount,
+            reply_count      AS replyCount,
+            is_teacher_reply AS isTeacherReply,
+            status,
+            created_time     AS createdTime,
+            updated_time     AS updatedTime
+        FROM course_discussion
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据ID列表批量删除 -->
+    <delete id="deleteByIds">
+        DELETE FROM course_discussion
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>
