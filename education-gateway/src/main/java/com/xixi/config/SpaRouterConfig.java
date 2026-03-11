@@ -39,6 +39,7 @@ public class SpaRouterConfig {
             "/admin",
             "/certificate",
             "/message",
+            "/job",
             "/resume",
             "/talent"
     );

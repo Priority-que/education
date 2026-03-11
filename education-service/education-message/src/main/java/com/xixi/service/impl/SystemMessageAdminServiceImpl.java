@@ -1,6 +1,5 @@
 package com.xixi.service.impl;
 
-import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -129,7 +128,7 @@ public class SystemMessageAdminServiceImpl implements SystemMessageAdminService 
         }
 
         String finalTargetType = existing.getTargetType();
-        List<Object> finalTargetValue = parseTargetValueAsList(existing.getTargetValue());
+        List<Object> finalTargetValue = parseTargetValueAsList(existing.getTargetType(), existing.getTargetValue());
         if (StringUtils.hasText(dto.getTargetType())) {
             validateTargetType(dto.getTargetType());
             finalTargetType = dto.getTargetType().trim().toUpperCase();
@@ -325,7 +324,7 @@ public class SystemMessageAdminServiceImpl implements SystemMessageAdminService 
         vo.setSenderName(entity.getSenderName());
         vo.setPriority(entity.getPriority());
         vo.setTargetType(entity.getTargetType());
-        vo.setTargetValue(parseTargetValueAsList(entity.getTargetValue()));
+        vo.setTargetValue(parseTargetValueAsList(entity.getTargetType(), entity.getTargetValue()));
         vo.setExpiryTime(entity.getExpiryTime());
         vo.setStatus(entity.getStatus());
         vo.setPublishTime(entity.getPublishTime());
@@ -335,12 +334,12 @@ public class SystemMessageAdminServiceImpl implements SystemMessageAdminService 
     }
 
     @MethodPurpose("将目标值JSON转换为列表")
-    private List<Object> parseTargetValueAsList(String targetValueJson) {
+    private List<Object> parseTargetValueAsList(String targetType, String targetValueJson) {
         if (!StringUtils.hasText(targetValueJson)) {
             return new ArrayList<>();
         }
         try {
-            return JSONUtil.parseArray(targetValueJson).toList(Object.class);
+            return messageRecipientResolver.parseStoredTargetValue(targetType, targetValueJson);
         } catch (Exception e) {
             return new ArrayList<>();
         }

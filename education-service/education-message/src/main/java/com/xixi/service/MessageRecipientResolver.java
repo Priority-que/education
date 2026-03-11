@@ -1,5 +1,7 @@
 package com.xixi.service;
 
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.xixi.exception.BizException;
 import com.xixi.mapper.MessageRecipientMapper;
@@ -12,9 +14,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * 消息投递目标解析器。
- */
 @Component
 @RequiredArgsConstructor
 public class MessageRecipientResolver {
@@ -24,9 +23,6 @@ public class MessageRecipientResolver {
 
     private final MessageRecipientMapper messageRecipientMapper;
 
-    /**
-     * 将targetType + targetValue(JSON)解析为可投递用户ID列表。
-     */
     public List<Long> resolveUserIds(String targetType, String targetValueJson) {
         if (!StringUtils.hasText(targetType)) {
             throw new BizException(400, "targetType不能为空");
@@ -35,22 +31,16 @@ public class MessageRecipientResolver {
         String normalizedTargetType = targetType.trim().toUpperCase();
         return switch (normalizedTargetType) {
             case TARGET_ALL -> distinct(messageRecipientMapper.selectAllEnabledUserIds());
-            case TARGET_ROLE -> resolveByRoles(parseTargetValueAsList(targetValueJson));
-            case TARGET_USER -> resolveByUserIds(parseTargetValueAsList(targetValueJson));
+            case TARGET_ROLE -> resolveByRoles(parseStoredTargetValue(normalizedTargetType, targetValueJson));
+            case TARGET_USER -> resolveByUserIds(parseStoredTargetValue(normalizedTargetType, targetValueJson));
             default -> throw new BizException(400, "targetType非法，仅支持ALL/ROLE/USER");
         };
     }
 
-    /**
-     * 计算可投递用户数。
-     */
     public int countRecipients(String targetType, String targetValueJson) {
         return resolveUserIds(targetType, targetValueJson).size();
     }
 
-    /**
-     * 将请求targetValue对象列表规范化并序列化为JSON字符串。
-     */
     public String normalizeTargetValue(String targetType, List<Object> targetValue) {
         if (!StringUtils.hasText(targetType)) {
             throw new BizException(400, "targetType不能为空");
@@ -77,6 +67,11 @@ public class MessageRecipientResolver {
             return JSONUtil.toJsonStr(roles);
         }
         throw new BizException(400, "targetType非法，仅支持ALL/ROLE/USER");
+    }
+
+    public List<Object> parseStoredTargetValue(String targetType, String targetValueJson) {
+        String normalizedTargetType = StringUtils.hasText(targetType) ? targetType.trim().toUpperCase() : "";
+        return parseTargetValueAsList(normalizedTargetType, targetValueJson);
     }
 
     private List<Long> resolveByRoles(List<Object> roleValues) {
@@ -161,15 +156,68 @@ public class MessageRecipientResolver {
         }
     }
 
-    private List<Object> parseTargetValueAsList(String targetValueJson) {
+    private List<Object> parseTargetValueAsList(String targetType, String targetValueJson) {
         if (!StringUtils.hasText(targetValueJson)) {
             return new ArrayList<>();
         }
         try {
-            return JSONUtil.parseArray(targetValueJson).toList(Object.class);
+            Object parsed = JSONUtil.parse(targetValueJson);
+            if (parsed instanceof JSONArray jsonArray) {
+                return jsonArray.toList(Object.class);
+            }
+            if (parsed instanceof JSONObject jsonObject) {
+                return parseLegacyTargetObject(targetType, jsonObject);
+            }
         } catch (Exception e) {
             throw new BizException(400, "targetValue格式非法");
         }
+        throw new BizException(400, "targetValue格式非法");
+    }
+
+    private List<Object> parseLegacyTargetObject(String targetType, JSONObject jsonObject) {
+        for (String fieldName : legacyFieldCandidates(targetType)) {
+            if (!jsonObject.containsKey(fieldName)) {
+                continue;
+            }
+            return castTargetFieldToList(jsonObject.get(fieldName));
+        }
+        if (jsonObject.size() == 1) {
+            return castTargetFieldToList(jsonObject.values().iterator().next());
+        }
+        throw new BizException(400, "targetValue格式非法");
+    }
+
+    private List<String> legacyFieldCandidates(String targetType) {
+        if (TARGET_ROLE.equals(targetType)) {
+            return List.of("roleCodes", "roles", "targetValue", "values");
+        }
+        if (TARGET_USER.equals(targetType)) {
+            return List.of("userIds", "users", "ids", "targetValue", "values");
+        }
+        return List.of("targetValue", "values", "roleCodes", "userIds", "ids");
+    }
+
+    private List<Object> castTargetFieldToList(Object fieldValue) {
+        if (fieldValue == null) {
+            return new ArrayList<>();
+        }
+        if (fieldValue instanceof JSONArray jsonArray) {
+            return jsonArray.toList(Object.class);
+        }
+        if (fieldValue instanceof List<?> list) {
+            return new ArrayList<>(list);
+        }
+        if (fieldValue instanceof Number || fieldValue instanceof CharSequence) {
+            String text = String.valueOf(fieldValue).trim();
+            if (!StringUtils.hasText(text)) {
+                return new ArrayList<>();
+            }
+            if (text.startsWith("[") && text.endsWith("]")) {
+                return JSONUtil.parseArray(text).toList(Object.class);
+            }
+            return new ArrayList<>(List.of(text));
+        }
+        throw new BizException(400, "targetValue格式非法");
     }
 
     private <T> List<T> distinct(List<T> list) {
