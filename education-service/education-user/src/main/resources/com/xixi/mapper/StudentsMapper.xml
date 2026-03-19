@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.StudentsMapper">
+    
+    <!-- 分页查询学生列表（关联用户表） -->
+    <select id="selectStudentPage" resultType="com.xixi.pojo.vo.StudentsVo">
+        SELECT
+            s.id,
+            s.user_id AS userId,
+            s.student_number AS studentNumber,
+            s.school,
+            s.college,
+            s.major,
+            s.enrollment_year AS enrollmentYear,
+            s.expected_graduation AS expectedGraduation,
+            s.gpa,
+            s.total_credits AS totalCredits,
+            s.created_time AS createdTime,
+            s.updated_time AS updatedTime,
+            u.real_name AS realName,
+            u.nickname,
+            u.avatar,
+            u.email,
+            u.phone
+        FROM students s
+        LEFT JOIN users u ON s.user_id = u.id
+        <where>
+            <if test="q.studentNumber != null and q.studentNumber != ''">
+                AND s.student_number = #{q.studentNumber}
+            </if>
+            <if test="q.college != null and q.college != ''">
+                AND s.college LIKE CONCAT('%', #{q.college}, '%')
+            </if>
+            <if test="q.major != null and q.major != ''">
+                AND s.major LIKE CONCAT('%', #{q.major}, '%')
+            </if>
+            <if test="q.enrollmentYear != null and q.enrollmentYear != ''">
+                AND s.enrollment_year = #{q.enrollmentYear}
+            </if>
+        </where>
+        ORDER BY s.created_time DESC
+    </select>
+    
+    <!-- 根据ID查询学生详情（关联用户表） -->
+    <select id="selectStudentById" resultType="com.xixi.pojo.vo.StudentsVo">
+        SELECT
+            s.id,
+            s.user_id AS userId,
+            s.student_number AS studentNumber,
+            s.school,
+            s.college,
+            s.major,
+            s.enrollment_year AS enrollmentYear,
+            s.expected_graduation AS expectedGraduation,
+            s.gpa,
+            s.total_credits AS totalCredits,
+            s.created_time AS createdTime,
+            s.updated_time AS updatedTime,
+            u.real_name AS realName,
+            u.nickname,
+            u.avatar,
+            u.email,
+            u.phone
+        FROM students s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.id = #{id}
+    </select>
+
+    <!-- 根据用户ID查询学生详情（关联用户表） -->
+    <select id="selectStudentByUserId" resultType="com.xixi.pojo.vo.StudentsVo">
+        SELECT
+            s.id,
+            s.user_id AS userId,
+            s.student_number AS studentNumber,
+            s.school,
+            s.college,
+            s.major,
+            s.enrollment_year AS enrollmentYear,
+            s.expected_graduation AS expectedGraduation,
+            s.gpa,
+            s.total_credits AS totalCredits,
+            s.created_time AS createdTime,
+            s.updated_time AS updatedTime,
+            u.real_name AS realName,
+            u.nickname,
+            u.avatar,
+            u.email,
+            u.phone
+        FROM students s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.user_id = #{userId}
+        LIMIT 1
+    </select>
+    
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.TalentFavoriteMapper">
+
+    <select id="selectFavoritePage" resultType="com.xixi.entity.TalentFavorite">
+        SELECT
+            ranked.id,
+            ranked.enterprise_id,
+            ranked.resume_id,
+            ranked.student_id,
+            ranked.tags,
+            ranked.rating,
+            ranked.notes,
+            ranked.status,
+            ranked.created_time,
+            ranked.updated_time
+        FROM (
+            SELECT
+                tf.id,
+                tf.enterprise_id,
+                tf.resume_id,
+                tf.student_id,
+                tf.tags,
+                tf.rating,
+                tf.notes,
+                tf.status,
+                tf.created_time,
+                tf.updated_time,
+                ROW_NUMBER() OVER (
+                    PARTITION BY CONCAT(
+                        CASE WHEN tf.student_id IS NULL THEN 'R:' ELSE 'S:' END,
+                        CAST(COALESCE(tf.student_id, tf.resume_id) AS CHAR)
+                    )
+                    ORDER BY tf.updated_time DESC, tf.created_time DESC, tf.id DESC
+                ) AS rn
+            FROM talent_favorite tf
+            WHERE tf.enterprise_id = #{enterpriseId}
+            <if test="status != null and status != ''">
+                AND tf.status = #{status}
+            </if>
+            <if test="tagName != null and tagName != ''">
+                AND CAST(tf.tags AS CHAR) LIKE CONCAT('%', #{tagName}, '%')
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    CAST(tf.resume_id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
+                    OR CAST(tf.student_id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
+                    OR tf.notes LIKE CONCAT('%', #{keyword}, '%')
+                    OR CAST(tf.tags AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+        ) ranked
+        WHERE ranked.rn = 1
+        ORDER BY ranked.updated_time DESC, ranked.id DESC
+    </select>
+
+    <select id="selectByEnterpriseAndId" resultType="com.xixi.entity.TalentFavorite">
+        SELECT *
+        FROM talent_favorite
+        WHERE enterprise_id = #{enterpriseId}
+          AND id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="countByEnterpriseAndStudent" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM talent_favorite
+        WHERE enterprise_id = #{enterpriseId}
+          AND student_id = #{studentId}
+    </select>
+
+    <update id="updateFavoriteContent">
+        UPDATE talent_favorite
+        SET tags = #{tags},
+            rating = #{rating},
+            notes = #{notes},
+            updated_time = #{updatedTime}
+        WHERE id = #{id}
+          AND enterprise_id = #{enterpriseId}
+    </update>
+
+    <update id="updateFavoriteStatus">
+        UPDATE talent_favorite
+        SET status = #{status},
+            updated_time = #{updatedTime}
+        WHERE id = #{id}
+          AND enterprise_id = #{enterpriseId}
+    </update>
+
+    <delete id="deleteByEnterpriseAndId">
+        DELETE
+        FROM talent_favorite
+        WHERE enterprise_id = #{enterpriseId}
+          AND id = #{id}
+    </delete>
+
+    <select id="countTotalByEnterprise" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM talent_favorite
+        WHERE enterprise_id = #{enterpriseId}
+    </select>
+
+    <select id="countDistinctCurrentByEnterprise" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM (
+            SELECT
+                ROW_NUMBER() OVER (
+                    PARTITION BY CONCAT(
+                        CASE WHEN tf.student_id IS NULL THEN 'R:' ELSE 'S:' END,
+                        CAST(COALESCE(tf.student_id, tf.resume_id) AS CHAR)
+                    )
+                    ORDER BY tf.updated_time DESC, tf.created_time DESC, tf.id DESC
+                ) AS rn
+            FROM talent_favorite tf
+            WHERE tf.enterprise_id = #{enterpriseId}
+        ) ranked
+        WHERE ranked.rn = 1
+    </select>
+
+    <select id="countByEnterpriseAndStatus" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM talent_favorite
+        WHERE enterprise_id = #{enterpriseId}
+          AND status = #{status}
+    </select>
+
+    <select id="countDistinctCurrentByEnterpriseAndStatus" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM (
+            SELECT
+                tf.status,
+                ROW_NUMBER() OVER (
+                    PARTITION BY CONCAT(
+                        CASE WHEN tf.student_id IS NULL THEN 'R:' ELSE 'S:' END,
+                        CAST(COALESCE(tf.student_id, tf.resume_id) AS CHAR)
+                    )
+                    ORDER BY tf.updated_time DESC, tf.created_time DESC, tf.id DESC
+                ) AS rn
+            FROM talent_favorite tf
+            WHERE tf.enterprise_id = #{enterpriseId}
+        ) ranked
+        WHERE ranked.rn = 1
+          AND ranked.status = #{status}
+    </select>
+
+    <select id="countCreatedByEnterpriseAndDate" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM talent_favorite
+        WHERE enterprise_id = #{enterpriseId}
+          AND DATE(created_time) = #{statDate}
+    </select>
+
+    <select id="countStatusUpdatedByEnterpriseAndDate" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM talent_favorite
+        WHERE enterprise_id = #{enterpriseId}
+          AND status = #{status}
+          AND DATE(updated_time) = #{statDate}
+    </select>
+
+    <select id="selectDistinctEnterpriseIds" resultType="java.lang.Long">
+        SELECT DISTINCT enterprise_id
+        FROM talent_favorite
+        WHERE enterprise_id IS NOT NULL
+    </select>
+
+</mapper>

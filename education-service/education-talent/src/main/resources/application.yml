@@ -1,0 +1,22 @@
+server:
+  port: 8708
+spring:
+  application:
+    name: education-talent
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://192.168.108.230:3306/education_talent_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  config:
+    import: nacos:education-common.yml
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.108.230:8848
+        username: nacos
+        password: nacos
+      config:
+        server-addr: 192.168.108.230:8848
+        username: nacos
+        password: nacos

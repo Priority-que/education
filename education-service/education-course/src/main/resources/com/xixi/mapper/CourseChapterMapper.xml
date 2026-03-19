@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.CourseChapterMapper">
+
+    <!-- 分页查询章节 -->
+    <select id="selectChapterPage" resultType="com.xixi.pojo.vo.CourseChapterVo">
+        SELECT
+            id,
+            course_id           AS courseId,
+            chapter_name        AS chapterName,
+            chapter_description AS chapterDescription,
+            sort_order          AS sortOrder,
+            duration,
+            created_time        AS createdTime,
+            updated_time        AS updatedTime
+        FROM course_chapter
+        <where>
+            <if test="q.courseId != null">
+                AND course_id = #{q.courseId}
+            </if>
+            <if test="q.chapterName != null and q.chapterName != ''">
+                AND chapter_name LIKE CONCAT('%', #{q.chapterName}, '%')
+            </if>
+        </where>
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <!-- 查询单个章节 -->
+    <select id="selectChapterById" resultType="com.xixi.pojo.vo.CourseChapterVo">
+        SELECT
+            id,
+            course_id           AS courseId,
+            chapter_name        AS chapterName,
+            chapter_description AS chapterDescription,
+            sort_order          AS sortOrder,
+            duration,
+            created_time        AS createdTime,
+            updated_time        AS updatedTime
+        FROM course_chapter
+        WHERE id = #{id}
+    </select>
+
+    <!-- 新增章节 -->
+    <insert id="insertChapter" parameterType="com.xixi.pojo.dto.CourseChapterDto" useGeneratedKeys="true" keyProperty="dto.id">
+        INSERT INTO course_chapter (
+            course_id,
+            chapter_name,
+            chapter_description,
+            sort_order,
+            duration
+        ) VALUES (
+            #{dto.courseId},
+            #{dto.chapterName},
+            #{dto.chapterDescription},
+            #{dto.sortOrder},
+            #{dto.duration}
+        )
+    </insert>
+
+    <!-- 更新章节 -->
+    <update id="updateChapter" parameterType="com.xixi.pojo.dto.CourseChapterDto">
+        UPDATE course_chapter
+        SET
+            course_id = #{dto.courseId},
+            chapter_name = #{dto.chapterName},
+            chapter_description = #{dto.chapterDescription},
+            sort_order = #{dto.sortOrder},
+            duration = #{dto.duration}
+        WHERE id = #{dto.id}
+    </update>
+
+    <!-- 批量删除章节 -->
+    <delete id="deleteChapter">
+        DELETE FROM course_chapter
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 根据课程ID查询章节列表（有序） -->
+    <select id="selectChaptersByCourseId" resultType="com.xixi.pojo.vo.CourseChapterVo">
+        SELECT
+            id,
+            course_id           AS courseId,
+            chapter_name        AS chapterName,
+            chapter_description AS chapterDescription,
+            sort_order          AS sortOrder,
+            duration,
+            created_time        AS createdTime,
+            updated_time        AS updatedTime
+        FROM course_chapter
+        WHERE course_id = #{courseId}
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+</mapper>

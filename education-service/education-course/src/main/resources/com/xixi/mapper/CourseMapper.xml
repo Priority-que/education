@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.CourseMapper">
+
+    <select id="selectCoursePage" resultType="com.xixi.pojo.vo.CourseVo">
+        SELECT
+            c.id,
+            c.teacher_id,
+            c.course_code,
+            c.course_name,
+            c.course_cover,
+            c.short_description,
+            c.full_description,
+            c.credit,
+            c.category_id ,
+            c.level,
+            c.total_hours ,
+            c.price,
+            c.status,
+            c.is_free,
+            c.max_students,
+            c.current_students,
+            c.view_count,
+            c.like_count,
+            c.rating,
+            c.rating_count,
+            c.published_time ,
+            c.created_time,
+            c.updated_time,
+            cc.category_name,
+            COALESCE(tu.real_name, tu.nickname, tu.username) AS teacher_name
+        FROM course c
+        LEFT JOIN course_category cc ON c.category_id = cc.id
+        LEFT JOIN education_user_db.teachers tt ON c.teacher_id = tt.id
+        LEFT JOIN education_user_db.teachers tu2 ON c.teacher_id = tu2.user_id
+        LEFT JOIN education_user_db.users tu ON tu.id = COALESCE(tt.user_id, tu2.user_id)
+        <where>
+            <if test="q.courseCode != null and q.courseCode != ''">
+                AND c.course_code = #{q.courseCode}
+            </if>
+            <if test="q.courseName != null and q.courseName != ''">
+                AND c.course_name LIKE CONCAT('%', #{q.courseName}, '%')
+            </if>
+            <if test="q.categoryId != null">
+                AND c.category_id = #{q.categoryId}
+            </if>
+            <if test="q.teacherId != null">
+                AND c.teacher_id = #{q.teacherId}
+            </if>
+            <if test="q.status != null and q.status != ''">
+                AND c.status = #{q.status}
+            </if>
+            <if test="q.keyword != null and q.keyword != ''">
+                AND (
+                    c.course_name LIKE CONCAT('%', #{q.keyword}, '%')
+                    OR c.short_description LIKE CONCAT('%', #{q.keyword}, '%')
+                    OR COALESCE(tu.real_name, tu.nickname, tu.username) LIKE CONCAT('%', #{q.keyword}, '%')
+                )
+            </if>
+            <if test="q.isFree != null">
+                AND c.is_free = #{q.isFree}
+            </if>
+            <if test="q.beginTime != null and q.endTime != null">
+                AND c.published_time BETWEEN #{q.beginTime} AND #{q.endTime}
+            </if>
+        </where>
+        ORDER BY 
+        <choose>
+            <when test="q.sortBy != null and q.sortBy != ''">
+                <choose>
+                    <when test="q.sortBy == 'view_count' or q.sortBy == 'viewCount'">
+                        c.view_count
+                    </when>
+                    <when test="q.sortBy == 'rating'">
+                        c.rating
+                    </when>
+                    <when test="q.sortBy == 'published_time' or q.sortBy == 'publishedTime'">
+                        c.published_time
+                    </when>
+                    <otherwise>
+                        c.published_time
+                    </otherwise>
+                </choose>
+                <choose>
+                    <when test="q.sortOrder != null and q.sortOrder == 'ASC'">
+                        ASC
+                    </when>
+                    <otherwise>
+                        DESC
+                    </otherwise>
+                </choose>
+            </when>
+            <otherwise>
+                c.published_time DESC
+            </otherwise>
+        </choose>
+    </select>
+    <select id="getCourseById" resultType="com.xixi.pojo.vo.CourseVo">
+        SELECT
+            c.id,
+            c.teacher_id,
+            c.course_code,
+            c.course_name,
+            c.course_cover,
+            c.short_description,
+            c.full_description,
+            c.credit,
+            c.category_id ,
+            c.level,
+            c.total_hours ,
+            c.price,
+            c.status,
+            c.is_free,
+            c.max_students,
+            c.current_students,
+            c.view_count,
+            c.like_count,
+            c.rating,
+            c.rating_count,
+            c.published_time ,
+            c.created_time,
+            c.updated_time,
+            cc.category_name
+        FROM course c LEFT JOIN course_category cc ON c.category_id = cc.id
+        WHERE c.id = #{id}
+    </select>
+
+    <update id="addStudentNumber">
+        UPDATE course
+        SET current_students = current_students + 1,
+            updated_time = NOW()
+        WHERE id = #{id}
+          AND (max_students IS NULL OR max_students &lt;= 0 OR current_students &lt; max_students)
+    </update>
+
+    <update id="reduceStudentNumber">
+        UPDATE course
+        SET current_students = current_students - 1,
+            updated_time = NOW()
+        WHERE id = #{id}
+          AND current_students > 0
+    </update>
+
+    <update id="addViewCount">
+        UPDATE course
+        SET view_count = IFNULL(view_count, 0) + 1,
+            updated_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="reduceViewCount">
+        UPDATE course
+        SET view_count = IFNULL(view_count, 0) - 1,
+            updated_time = NOW()
+        WHERE id = #{id}
+          AND IFNULL(view_count, 0) > 0
+    </update>
+
+    <update id="addLikeCount">
+        UPDATE course
+        SET like_count = IFNULL(like_count, 0) + 1,
+            updated_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="reduceLikeCount">
+        UPDATE course
+        SET like_count = IFNULL(like_count, 0) - 1,
+            updated_time = NOW()
+        WHERE id = #{id}
+          AND IFNULL(like_count, 0) > 0
+    </update>
+
+    <update id="addCourseRating">
+        UPDATE course
+        SET rating =
+                ROUND(
+                        (IFNULL(rating, 0) * IFNULL(rating_count, 0) + #{rating})
+                                / (IFNULL(rating_count, 0) + 1),
+                        2
+                ),
+            rating_count = IFNULL(rating_count, 0) + 1,
+            updated_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

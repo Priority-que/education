@@ -1,0 +1,394 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.GradeMapper">
+
+    <!-- 成绩结果映射 -->
+    <resultMap id="GradeVoMap" type="com.xixi.pojo.vo.GradeVo">
+        <id column="id" property="id"/>
+        <result column="student_id" property="studentId"/>
+        <result column="course_id" property="courseId"/>
+        <result column="course_name" property="courseName"/>
+        <result column="teacher_id" property="teacherId"/>
+        <result column="attendance_score" property="attendanceScore"/>
+        <result column="homework_score" property="homeworkScore"/>
+        <result column="quiz_score" property="quizScore"/>
+        <result column="exam_score" property="examScore"/>
+        <result column="final_score" property="finalScore"/>
+        <result column="grade_level" property="gradeLevel"/>
+        <result column="gpa" property="gpa"/>
+        <result column="credit_earned" property="creditEarned"/>
+        <result column="is_pass" property="isPass"/>
+        <result column="published_time" property="publishedTime"/>
+        <result column="created_time" property="createdTime"/>
+    </resultMap>
+
+    <!-- 分页查询成绩列表 -->
+    <select id="selectGradePage" resultMap="GradeVoMap">
+        SELECT
+            g.id,
+            g.student_id,
+            g.course_id,
+            g.course_name,
+            g.teacher_id,
+            g.attendance_score,
+            g.homework_score,
+            g.quiz_score,
+            g.exam_score,
+            g.final_score,
+            g.grade_level,
+            g.gpa,
+            g.credit_earned,
+            g.is_pass,
+            g.published_time,
+            g.created_time
+        FROM grade g
+        <where>
+            <if test="q.studentId != null">
+                AND g.student_id = #{q.studentId}
+            </if>
+            <if test="q.courseId != null">
+                AND g.course_id = #{q.courseId}
+            </if>
+            <if test="q.isPass != null">
+                AND g.is_pass = #{q.isPass}
+            </if>
+            AND g.published_time IS NOT NULL
+        </where>
+        ORDER BY g.published_time DESC, g.created_time DESC
+    </select>
+
+    <!-- 教师端：分页查询课程成绩列表 -->
+    <select id="selectTeacherCourseGradePage" resultMap="GradeVoMap">
+        SELECT
+            g.id,
+            g.student_id,
+            g.course_id,
+            g.course_name,
+            g.teacher_id,
+            g.attendance_score,
+            g.homework_score,
+            g.quiz_score,
+            g.exam_score,
+            g.final_score,
+            g.grade_level,
+            g.gpa,
+            g.credit_earned,
+            g.is_pass,
+            g.published_time,
+            g.created_time
+        FROM grade g
+        <where>
+            g.course_id = #{courseId}
+            <if test="q.studentId != null">
+                AND g.student_id = #{q.studentId}
+            </if>
+            <if test="q.isPass != null">
+                AND g.is_pass = #{q.isPass}
+            </if>
+            <if test="q.isPublished != null and q.isPublished == true">
+                AND g.published_time IS NOT NULL
+            </if>
+            <if test="q.isPublished != null and q.isPublished == false">
+                AND g.published_time IS NULL
+            </if>
+        </where>
+        ORDER BY g.created_time DESC, g.id DESC
+    </select>
+
+    <!-- 教师端：导出课程成绩单 -->
+    <select id="selectTeacherCourseGradeList" resultMap="GradeVoMap">
+        SELECT
+            g.id,
+            g.student_id,
+            g.course_id,
+            g.course_name,
+            g.teacher_id,
+            g.attendance_score,
+            g.homework_score,
+            g.quiz_score,
+            g.exam_score,
+            g.final_score,
+            g.grade_level,
+            g.gpa,
+            g.credit_earned,
+            g.is_pass,
+            g.published_time,
+            g.created_time
+        FROM grade g
+        WHERE g.course_id = #{courseId}
+        ORDER BY g.final_score DESC, g.id ASC
+    </select>
+
+    <!-- 根据课程ID和学生ID查询成绩 -->
+    <select id="selectGradeByCourseAndStudent" resultMap="GradeVoMap">
+        SELECT
+            g.id,
+            g.student_id,
+            g.course_id,
+            g.course_name,
+            g.teacher_id,
+            g.attendance_score,
+            g.homework_score,
+            g.quiz_score,
+            g.exam_score,
+            g.final_score,
+            g.grade_level,
+            g.gpa,
+            g.credit_earned,
+            g.is_pass,
+            g.published_time,
+            g.created_time
+        FROM grade g
+        WHERE g.course_id = #{courseId}
+          AND g.student_id = #{studentId}
+          AND g.published_time IS NOT NULL
+        ORDER BY g.published_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- 统计总学分 -->
+    <select id="selectTotalCredits" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(credit_earned), 0)
+        FROM grade
+        WHERE student_id = #{studentId}
+          AND is_pass = 1
+          AND published_time IS NOT NULL
+    </select>
+
+    <!-- 统计平均GPA（加权平均） -->
+    <select id="selectAverageGpa" resultType="java.math.BigDecimal">
+        SELECT
+            CASE
+                WHEN SUM(credit_earned) > 0 THEN
+                    SUM(gpa * credit_earned) / SUM(credit_earned)
+                ELSE 0
+            END AS average_gpa
+        FROM grade
+        WHERE student_id = #{studentId}
+          AND is_pass = 1
+          AND published_time IS NOT NULL
+    </select>
+
+    <!-- 统计成绩分布 -->
+    <select id="selectGradeDistribution" resultType="java.util.Map">
+        SELECT
+            grade_level AS gradeLevel,
+            COUNT(*) AS count
+        FROM grade
+        WHERE student_id = #{studentId}
+          AND published_time IS NOT NULL
+        GROUP BY grade_level
+        ORDER BY grade_level
+    </select>
+
+    <!-- 查询各课程成绩趋势 -->
+    <select id="selectCourseGradeTrends" resultType="java.util.Map">
+        SELECT
+            course_id AS courseId,
+            course_name AS courseName,
+            final_score AS finalScore,
+            grade_level AS gradeLevel,
+            published_time AS publishedTime
+        FROM grade
+        WHERE student_id = #{studentId}
+          AND published_time IS NOT NULL
+        ORDER BY published_time ASC
+    </select>
+
+    <!-- 查询各课程学分明细 -->
+    <select id="selectCourseCredits" resultType="java.util.Map">
+        SELECT
+            course_id AS courseId,
+            course_name AS courseName,
+            credit_earned AS creditEarned,
+            grade_level AS gradeLevel
+        FROM grade
+        WHERE student_id = #{studentId}
+          AND is_pass = 1
+          AND published_time IS NOT NULL
+        ORDER BY published_time DESC
+    </select>
+
+    <!-- 查询GPA明细 -->
+    <select id="selectGpaDetails" resultType="java.util.Map">
+        SELECT
+            course_id AS courseId,
+            course_name AS courseName,
+            grade_level AS gradeLevel,
+            gpa,
+            credit_earned AS creditEarned
+        FROM grade
+        WHERE student_id = #{studentId}
+          AND is_pass = 1
+          AND published_time IS NOT NULL
+        ORDER BY published_time DESC
+    </select>
+
+    <!-- 按学期统计学分 -->
+    <select id="selectSemesterCredits" resultType="java.util.Map">
+        SELECT
+            CONCAT(YEAR(published_time), '年', IF(MONTH(published_time) &lt;= 6, '上学期', '下学期')) AS semester,
+            COALESCE(SUM(credit_earned), 0) AS totalCredits,
+            COUNT(*) AS courseCount
+        FROM grade
+        WHERE student_id = #{studentId}
+          AND is_pass = 1
+          AND published_time IS NOT NULL
+        GROUP BY CONCAT(YEAR(published_time), '年', IF(MONTH(published_time) &lt;= 6, '上学期', '下学期'))
+        ORDER BY MIN(published_time)
+    </select>
+
+    <!-- 查询GPA趋势 -->
+    <select id="selectGpaTrends" resultType="java.util.Map">
+        SELECT
+            CONCAT(YEAR(published_time), '年', IF(MONTH(published_time) &lt;= 6, '上学期', '下学期')) AS period,
+            CASE
+                WHEN SUM(credit_earned) > 0 THEN SUM(gpa * credit_earned) / SUM(credit_earned)
+                ELSE 0
+            END AS gpa
+        FROM grade
+        WHERE student_id = #{studentId}
+          AND is_pass = 1
+          AND published_time IS NOT NULL
+        GROUP BY CONCAT(YEAR(published_time), '年', IF(MONTH(published_time) &lt;= 6, '上学期', '下学期'))
+        ORDER BY MIN(published_time)
+    </select>
+
+    <!-- 教师端：按课程和学生查询成绩实体 -->
+    <select id="selectEntityByCourseAndStudent" resultType="com.xixi.entity.Grade">
+        SELECT
+            id,
+            student_id,
+            course_id,
+            course_name,
+            teacher_id,
+            attendance_score,
+            homework_score,
+            quiz_score,
+            exam_score,
+            final_score,
+            grade_level,
+            gpa,
+            credit_earned,
+            is_pass,
+            published_time,
+            published_by,
+            created_time,
+            updated_time
+        FROM grade
+        WHERE course_id = #{courseId}
+          AND student_id = #{studentId}
+        LIMIT 1
+    </select>
+
+    <!-- 教师端：按课程查询成绩实体列表 -->
+    <select id="selectEntityListByCourseId" resultType="com.xixi.entity.Grade">
+        SELECT
+            id,
+            student_id,
+            course_id,
+            course_name,
+            teacher_id,
+            attendance_score,
+            homework_score,
+            quiz_score,
+            exam_score,
+            final_score,
+            grade_level,
+            gpa,
+            credit_earned,
+            is_pass,
+            published_time,
+            published_by,
+            created_time,
+            updated_time
+        FROM grade
+        WHERE course_id = #{courseId}
+        ORDER BY id ASC
+    </select>
+
+    <!-- 教师端：批量发布成绩 -->
+    <update id="batchPublish">
+        UPDATE grade
+        SET published_time = #{publishedTime},
+            published_by = #{publishedBy}
+        WHERE id IN
+        <foreach collection="gradeIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <!-- 教师端：批量撤销成绩发布 -->
+    <update id="batchUnpublish">
+        UPDATE grade
+        SET published_time = NULL,
+            published_by = NULL
+        WHERE id IN
+        <foreach collection="gradeIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <!-- 教师端：课程成绩统计概览 -->
+    <select id="selectTeacherCourseStatistics" resultType="java.util.Map">
+        SELECT
+            COUNT(*) AS totalCount,
+            COALESCE(SUM(CASE WHEN g.is_pass = 1 THEN 1 ELSE 0 END), 0) AS passCount,
+            COALESCE(AVG(g.final_score), 0) AS averageScore,
+            COALESCE(MAX(g.final_score), 0) AS maxScore,
+            COALESCE(MIN(g.final_score), 0) AS minScore
+        FROM grade g
+        WHERE g.course_id = #{courseId}
+    </select>
+
+    <!-- 教师端：课程成绩等级分布（A/B/C/D/F） -->
+    <select id="selectTeacherCourseGradeDistribution" resultType="java.util.Map">
+        SELECT
+            g.grade_level AS gradeLevel,
+            COUNT(*) AS count
+        FROM grade g
+        WHERE g.course_id = #{courseId}
+        GROUP BY g.grade_level
+    </select>
+
+    <!-- 教师端：课程成绩分数段分布 -->
+    <select id="selectTeacherCourseScoreRangeDistribution" resultType="java.util.Map">
+        SELECT
+            CASE
+                WHEN g.final_score &gt;= 90 THEN '90-100'
+                WHEN g.final_score &gt;= 80 THEN '80-89'
+                WHEN g.final_score &gt;= 70 THEN '70-79'
+                WHEN g.final_score &gt;= 60 THEN '60-69'
+                ELSE '0-59'
+            END AS scoreRange,
+            COUNT(*) AS count
+        FROM grade g
+        WHERE g.course_id = #{courseId}
+        GROUP BY
+            CASE
+                WHEN g.final_score &gt;= 90 THEN '90-100'
+                WHEN g.final_score &gt;= 80 THEN '80-89'
+                WHEN g.final_score &gt;= 70 THEN '70-79'
+                WHEN g.final_score &gt;= 60 THEN '60-69'
+                ELSE '0-59'
+            END
+    </select>
+
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

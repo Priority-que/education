@@ -1,0 +1,410 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.HomeworkSubmissionMapper">
+
+    <!-- 作业提交结果映射 -->
+    <resultMap id="HomeworkSubmissionVoMap" type="com.xixi.pojo.vo.HomeworkSubmissionVo">
+        <id column="id" property="id"/>
+        <result column="homework_id" property="homeworkId"/>
+        <result column="homework_title" property="homeworkTitle"/>
+        <result column="course_id" property="courseId"/>
+        <result column="student_id" property="studentId"/>
+        <result column="submission_content" property="submissionContent"/>
+        <result column="attachment_url" property="attachmentUrl"/>
+        <result column="submission_time" property="submissionTime"/>
+        <result column="score" property="score"/>
+        <result column="feedback" property="feedback"/>
+        <result column="graded_by" property="gradedBy"/>
+        <result column="graded_time" property="gradedTime"/>
+        <result column="status" property="status"/>
+        <result column="homework_total_score" property="homeworkTotalScore"/>
+        <result column="created_time" property="createdTime"/>
+    </resultMap>
+
+    <!-- 分页查询作业提交列表 -->
+    <select id="selectHomeworkSubmissionPage" resultMap="HomeworkSubmissionVoMap">
+        SELECT
+            hs.id,
+            hs.homework_id,
+            h.homework_title,
+            h.course_id,
+            hs.student_id,
+            hs.submission_content,
+            hs.attachment_url,
+            hs.submission_time,
+            hs.score,
+            hs.feedback,
+            hs.graded_by,
+            hs.graded_time,
+            hs.status,
+            h.total_score AS homework_total_score,
+            hs.created_time
+        FROM homework_submission hs
+        INNER JOIN homework h ON h.id = hs.homework_id
+        <where>
+            <if test="q.studentId != null">
+                AND hs.student_id = #{q.studentId}
+            </if>
+            <if test="q.homeworkId != null">
+                AND hs.homework_id = #{q.homeworkId}
+            </if>
+            <if test="q.status != null and q.status != ''">
+                AND hs.status = #{q.status}
+            </if>
+            <if test="q.courseId != null">
+                AND EXISTS (
+                    SELECT 1 FROM homework h
+                    WHERE h.id = hs.homework_id AND h.course_id = #{q.courseId}
+                )
+            </if>
+        </where>
+        ORDER BY hs.submission_time DESC
+    </select>
+
+    <!-- 教师端分页查询作业提交列表 -->
+    <select id="selectTeacherHomeworkSubmissionPage" resultMap="HomeworkSubmissionVoMap">
+        SELECT
+            hs.id,
+            hs.homework_id,
+            h.homework_title,
+            h.course_id,
+            hs.student_id,
+            hs.submission_content,
+            hs.attachment_url,
+            hs.submission_time,
+            hs.score,
+            hs.feedback,
+            hs.graded_by,
+            hs.graded_time,
+            hs.status,
+            h.total_score AS homework_total_score,
+            hs.created_time
+        FROM homework_submission hs
+        INNER JOIN homework h ON h.id = hs.homework_id
+        <where>
+            AND h.teacher_id = #{q.teacherId}
+            <if test="q.homeworkId != null">
+                AND hs.homework_id = #{q.homeworkId}
+            </if>
+            <if test="q.courseId != null">
+                AND h.course_id = #{q.courseId}
+            </if>
+            <if test="q.status != null and q.status != ''">
+                AND hs.status = #{q.status}
+            </if>
+        </where>
+        ORDER BY
+        <choose>
+            <when test="q.sortBy == 'gradedTime'">
+                hs.graded_time
+            </when>
+            <when test="q.sortBy == 'score'">
+                hs.score
+            </when>
+            <otherwise>
+                hs.submission_time
+            </otherwise>
+        </choose>
+        <choose>
+            <when test="q.sortOrder != null and q.sortOrder == 'ASC'">
+                ASC
+            </when>
+            <otherwise>
+                DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 根据作业ID和学生ID查询提交记录 -->
+    <select id="selectByHomeworkAndStudent" resultType="com.xixi.entity.HomeworkSubmission">
+        SELECT
+            id,
+            homework_id,
+            student_id,
+            submission_content,
+            attachment_url,
+            submission_time,
+            score,
+            feedback,
+            graded_by,
+            graded_time,
+            status,
+            created_time,
+            updated_time
+        FROM homework_submission
+        WHERE homework_id = #{homeworkId}
+          AND student_id = #{studentId}
+        ORDER BY submission_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- 查询提交详情 -->
+    <select id="selectSubmissionDetail" resultMap="HomeworkSubmissionVoMap">
+        SELECT
+            hs.id,
+            hs.homework_id,
+            h.homework_title,
+            h.course_id,
+            hs.student_id,
+            hs.submission_content,
+            hs.attachment_url,
+            hs.submission_time,
+            hs.score,
+            hs.feedback,
+            hs.graded_by,
+            hs.graded_time,
+            hs.status,
+            h.total_score AS homework_total_score,
+            hs.created_time
+        FROM homework_submission hs
+        INNER JOIN homework h ON h.id = hs.homework_id
+        WHERE hs.id = #{submissionId}
+    </select>
+
+    <!-- 根据提交ID查询附件信息 -->
+    <select id="selectSubmissionAttachment" resultMap="HomeworkSubmissionVoMap">
+        SELECT
+            hs.id,
+            hs.homework_id,
+            h.homework_title,
+            h.course_id,
+            hs.student_id,
+            hs.attachment_url,
+            hs.submission_time
+        FROM homework_submission hs
+                 INNER JOIN homework h ON h.id = hs.homework_id
+        WHERE hs.id = #{submissionId}
+        LIMIT 1
+    </select>
+
+    <!-- 根据作业ID查询可下载附件列表 -->
+    <select id="selectHomeworkAttachments" resultMap="HomeworkSubmissionVoMap">
+        SELECT
+            hs.id,
+            hs.homework_id,
+            h.homework_title,
+            h.course_id,
+            hs.student_id,
+            hs.attachment_url,
+            hs.submission_time
+        FROM homework_submission hs
+                 INNER JOIN homework h ON h.id = hs.homework_id
+        WHERE hs.homework_id = #{homeworkId}
+          AND hs.status != 'DRAFT'
+          AND hs.attachment_url IS NOT NULL
+          AND hs.attachment_url != ''
+        ORDER BY hs.submission_time DESC, hs.id DESC
+    </select>
+
+    <!-- 教师端根据提交ID查询提交详情 -->
+    <select id="selectTeacherSubmissionDetail" resultMap="HomeworkSubmissionVoMap">
+        SELECT
+            hs.id,
+            hs.homework_id,
+            h.homework_title,
+            h.course_id,
+            hs.student_id,
+            hs.submission_content,
+            hs.attachment_url,
+            hs.submission_time,
+            hs.score,
+            hs.feedback,
+            hs.graded_by,
+            hs.graded_time,
+            hs.status,
+            h.total_score AS homework_total_score,
+            hs.created_time
+        FROM homework_submission hs
+        INNER JOIN homework h ON h.id = hs.homework_id
+        WHERE hs.id = #{submissionId}
+          AND h.teacher_id = #{teacherId}
+    </select>
+
+    <!-- 查询学生课程作业完成进度（含未提交作业） -->
+    <select id="selectHomeworkProgressByStudentAndCourse" resultType="com.xixi.pojo.vo.StudentCourseDetailVo$HomeworkProgressVo">
+        SELECT
+            h.id AS homeworkId,
+            h.homework_title AS homeworkTitle,
+            CASE
+                WHEN latest_hs.status IS NOT NULL THEN latest_hs.status
+                WHEN h.deadline IS NOT NULL AND NOW() > h.deadline THEN 'OVERDUE_NOT_SUBMITTED'
+                ELSE 'NOT_SUBMITTED'
+                END AS status,
+            latest_hs.score AS score
+        FROM homework h
+                 LEFT JOIN (
+            SELECT
+                hs.id,
+                hs.homework_id,
+                hs.status,
+                hs.score
+            FROM homework_submission hs
+                     INNER JOIN (
+                SELECT
+                    homework_id,
+                    MAX(id) AS max_id
+                FROM homework_submission
+                WHERE student_id = #{studentId}
+                GROUP BY homework_id
+            ) latest ON hs.id = latest.max_id
+        ) latest_hs ON h.id = latest_hs.homework_id
+        WHERE h.course_id = #{courseId}
+          AND (h.status = 'PUBLISHED' OR h.status = 'CLOSED')
+        ORDER BY h.deadline ASC, h.id ASC
+    </select>
+
+    <!-- 教师端按学生维度查询课程作业提交结果 -->
+    <select id="selectTeacherStudentHomeworkSubmissions" resultType="com.xixi.pojo.vo.TeacherStudentDetailVo$HomeworkSubmissionInfo">
+        SELECT
+            h.id AS homeworkId,
+            h.homework_title AS homeworkTitle,
+            CASE
+                WHEN latest_hs.status IS NOT NULL THEN latest_hs.status
+                WHEN h.deadline IS NOT NULL AND NOW() > h.deadline THEN 'OVERDUE_NOT_SUBMITTED'
+                ELSE 'NOT_SUBMITTED'
+                END AS status,
+            latest_hs.score AS score,
+            latest_hs.submission_time AS submitTime
+        FROM homework h
+                 LEFT JOIN (
+            SELECT
+                hs.id,
+                hs.homework_id,
+                hs.status,
+                hs.score,
+                hs.submission_time
+            FROM homework_submission hs
+                     INNER JOIN (
+                SELECT
+                    homework_id,
+                    MAX(id) AS max_id
+                FROM homework_submission
+                WHERE student_id = #{studentId}
+                GROUP BY homework_id
+            ) latest ON hs.id = latest.max_id
+        ) latest_hs ON h.id = latest_hs.homework_id
+        WHERE h.course_id = #{courseId}
+        ORDER BY h.deadline ASC, h.id ASC
+    </select>
+
+    <!-- 教师端按课程统计作业完成情况 -->
+    <select id="selectCourseHomeworkCompletionAnalysis" resultType="java.util.Map">
+        SELECT
+            h.id AS homeworkId,
+            h.homework_title AS homeworkTitle,
+            COALESCE(sc.totalStudents, 0) AS totalStudents,
+            COUNT(latest_hs.id) AS submittedCount,
+            COALESCE(AVG(latest_hs.score), 0) AS averageScore,
+            COALESCE(SUM(CASE WHEN latest_hs.score IS NOT NULL THEN 1 ELSE 0 END), 0) AS scoredCount,
+            COALESCE(SUM(
+                CASE
+                    WHEN latest_hs.status = 'LATE' THEN 1
+                    WHEN h.deadline IS NOT NULL
+                        AND latest_hs.submission_time IS NOT NULL
+                        AND latest_hs.submission_time > h.deadline THEN 1
+                    ELSE 0
+                END
+            ), 0) AS lateCount
+        FROM homework h
+                 LEFT JOIN (
+            SELECT
+                hs.homework_id,
+                hs.student_id,
+                MAX(hs.id) AS max_id
+            FROM homework_submission hs
+            WHERE hs.status != 'DRAFT'
+            GROUP BY hs.homework_id, hs.student_id
+        ) latest ON latest.homework_id = h.id
+                 LEFT JOIN homework_submission latest_hs ON latest_hs.id = latest.max_id
+                 LEFT JOIN (
+            SELECT
+                course_id,
+                COUNT(1) AS totalStudents
+            FROM student_course
+            WHERE learning_status != 'DROPPED'
+            GROUP BY course_id
+        ) sc ON sc.course_id = h.course_id
+        WHERE h.course_id = #{courseId}
+        GROUP BY h.id, h.homework_title, sc.totalStudents
+        ORDER BY h.deadline ASC, h.id ASC
+    </select>
+
+    <!-- 教师端按课程统计作业提交时间分布（按小时） -->
+    <select id="selectCourseHomeworkSubmissionTimeDistribution" resultType="java.util.Map">
+        SELECT
+            HOUR(latest_hs.submission_time) AS hour,
+            COUNT(1) AS submissionCount
+        FROM homework h
+                 INNER JOIN (
+            SELECT
+                hs.homework_id,
+                hs.student_id,
+                MAX(hs.id) AS max_id
+            FROM homework_submission hs
+            WHERE hs.status != 'DRAFT'
+            GROUP BY hs.homework_id, hs.student_id
+        ) latest ON latest.homework_id = h.id
+                 INNER JOIN homework_submission latest_hs ON latest_hs.id = latest.max_id
+        WHERE h.course_id = #{courseId}
+          AND latest_hs.submission_time IS NOT NULL
+        GROUP BY HOUR(latest_hs.submission_time)
+        ORDER BY hour ASC
+    </select>
+
+    <!-- 按作业ID标记逾期提交记录 -->
+    <update id="markLateSubmissionsByHomeworkId">
+        UPDATE homework_submission hs
+            INNER JOIN homework h ON hs.homework_id = h.id
+        SET hs.status = 'LATE',
+            hs.updated_time = NOW()
+        WHERE hs.homework_id = #{homeworkId}
+          AND hs.submission_time IS NOT NULL
+          AND h.deadline IS NOT NULL
+          AND hs.submission_time > h.deadline
+          AND hs.status IN ('SUBMITTED', 'DRAFT')
+    </update>
+
+    <!-- 统计作业提交概览 -->
+    <select id="selectHomeworkSubmissionStatistics" resultType="java.util.Map">
+        SELECT
+            COUNT(1) AS totalSubmissions,
+            COALESCE(SUM(CASE
+                             WHEN hs.score IS NOT NULL OR hs.status = 'GRADED' THEN 1
+                             ELSE 0
+                END), 0) AS gradedCount,
+            COALESCE(SUM(CASE
+                             WHEN hs.status = 'LATE' THEN 1
+                             WHEN h.deadline IS NOT NULL
+                                 AND hs.submission_time IS NOT NULL
+                                 AND hs.submission_time > h.deadline THEN 1
+                             ELSE 0
+                END), 0) AS lateCount,
+            COALESCE(AVG(hs.score), 0) AS averageScore
+        FROM homework_submission hs
+                 INNER JOIN homework h ON h.id = hs.homework_id
+        WHERE hs.homework_id = #{homeworkId}
+          AND hs.status != 'DRAFT'
+    </select>
+
+    <!-- 统计作业提交分数分布（按百分比分段） -->
+    <select id="selectHomeworkScoreDistribution" resultType="java.util.Map">
+        SELECT
+            CASE
+                WHEN h.total_score IS NULL OR h.total_score = 0 THEN 'UNAVAILABLE'
+                WHEN (hs.score / h.total_score * 100) &lt; 60 THEN '0-59'
+                WHEN (hs.score / h.total_score * 100) &lt; 70 THEN '60-69'
+                WHEN (hs.score / h.total_score * 100) &lt; 80 THEN '70-79'
+                WHEN (hs.score / h.total_score * 100) &lt; 90 THEN '80-89'
+                ELSE '90-100'
+                END AS scoreRange,
+            COUNT(1) AS scoreCount
+        FROM homework_submission hs
+                 INNER JOIN homework h ON h.id = hs.homework_id
+        WHERE hs.homework_id = #{homeworkId}
+          AND hs.status != 'DRAFT'
+          AND hs.score IS NOT NULL
+        GROUP BY scoreRange
+    </select>
+
+</mapper>

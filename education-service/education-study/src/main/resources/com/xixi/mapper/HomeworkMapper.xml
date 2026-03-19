@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.HomeworkMapper">
+
+    <!-- 作业视图映射 -->
+    <resultMap id="HomeworkVoMap" type="com.xixi.pojo.vo.HomeworkVo">
+        <id column="id" property="id"/>
+        <result column="course_id" property="courseId"/>
+        <result column="teacher_id" property="teacherId"/>
+        <result column="homework_title" property="homeworkTitle"/>
+        <result column="homework_description" property="homeworkDescription"/>
+        <result column="homework_type" property="homeworkType"/>
+        <result column="attachment_url" property="attachmentUrl"/>
+        <result column="total_score" property="totalScore"/>
+        <result column="deadline" property="deadline"/>
+        <result column="status" property="status"/>
+        <result column="created_time" property="createdTime"/>
+    </resultMap>
+
+    <!-- 分页查询课程作业（学生端） -->
+    <select id="selectHomeworkPage" resultMap="HomeworkVoMap">
+        SELECT
+            h.id,
+            h.course_id,
+            h.teacher_id,
+            h.homework_title,
+            h.homework_description,
+            h.homework_type,
+            h.attachment_url,
+            h.total_score,
+            h.deadline,
+            h.status,
+            h.created_time
+        FROM homework h
+        <where>
+            <if test="q.courseId != null">
+                AND h.course_id = #{q.courseId}
+            </if>
+            AND h.status = 'PUBLISHED'
+        </where>
+        ORDER BY h.deadline ASC, h.created_time DESC
+    </select>
+
+    <!-- 查询作业详情 -->
+    <select id="selectHomeworkDetail" resultMap="HomeworkVoMap">
+        SELECT
+            h.id,
+            h.course_id,
+            h.teacher_id,
+            h.homework_title,
+            h.homework_description,
+            h.homework_type,
+            h.attachment_url,
+            h.total_score,
+            h.deadline,
+            h.status,
+            h.created_time
+        FROM homework h
+        WHERE h.id = #{homeworkId}
+    </select>
+
+    <!-- 分页查询作业（教师端） -->
+    <select id="selectTeacherHomeworkPage" resultMap="HomeworkVoMap">
+        SELECT
+            h.id,
+            h.course_id,
+            h.teacher_id,
+            h.homework_title,
+            h.homework_description,
+            h.homework_type,
+            h.attachment_url,
+            h.total_score,
+            h.deadline,
+            h.status,
+            h.created_time
+        FROM homework h
+        <where>
+            <if test="q.teacherId != null">
+                AND h.teacher_id = #{q.teacherId}
+            </if>
+            <if test="q.courseId != null">
+                AND h.course_id = #{q.courseId}
+            </if>
+            <if test="q.status != null and q.status != ''">
+                AND h.status = #{q.status}
+            </if>
+        </where>
+        ORDER BY
+        <choose>
+            <when test="q.sortBy != null and q.sortBy != ''">
+                <choose>
+                    <when test="q.sortBy == 'deadline'">
+                        h.deadline
+                    </when>
+                    <when test="q.sortBy == 'totalScore'">
+                        h.total_score
+                    </when>
+                    <otherwise>
+                        h.created_time
+                    </otherwise>
+                </choose>
+                <choose>
+                    <when test="q.sortOrder != null and q.sortOrder == 'ASC'">
+                        ASC
+                    </when>
+                    <otherwise>
+                        DESC
+                    </otherwise>
+                </choose>
+            </when>
+            <otherwise>
+                h.created_time DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 按作业 ID 和教师 ID 查询作业 -->
+    <select id="selectTeacherHomeworkById" resultType="com.xixi.entity.Homework">
+        SELECT
+            id,
+            course_id,
+            teacher_id,
+            homework_title,
+            homework_description,
+            homework_type,
+            attachment_url,
+            total_score,
+            deadline,
+            status,
+            created_time,
+            updated_time
+        FROM homework
+        WHERE id = #{homeworkId}
+          AND teacher_id = #{teacherId}
+    </select>
+
+    <!-- 教师删除自己的作业 -->
+    <delete id="deleteTeacherHomework">
+        DELETE
+        FROM homework
+        WHERE id = #{homeworkId}
+          AND teacher_id = #{teacherId}
+    </delete>
+</mapper>

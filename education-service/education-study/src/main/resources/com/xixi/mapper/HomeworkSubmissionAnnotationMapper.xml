@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.HomeworkSubmissionAnnotationMapper">
+
+    <select id="selectBySubmissionId" resultType="com.xixi.entity.HomeworkSubmissionAnnotation">
+        SELECT *
+        FROM homework_submission_annotation
+        WHERE submission_id = #{submissionId}
+        LIMIT 1
+    </select>
+
+    <select id="selectBySubmissionIds" resultType="com.xixi.entity.HomeworkSubmissionAnnotation">
+        SELECT *
+        FROM homework_submission_annotation
+        WHERE submission_id IN
+        <foreach collection="submissionIds" item="submissionId" open="(" separator="," close=")">
+            #{submissionId}
+        </foreach>
+    </select>
+
+</mapper>

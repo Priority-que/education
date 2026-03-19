@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.JobApplicationMapper">
+
+    <select id="selectLatestByJobAndStudent" resultType="com.xixi.entity.JobApplication">
+        SELECT *
+        FROM job_application
+        WHERE job_id = #{jobId}
+          AND student_id = #{studentId}
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectByStudentAndId" resultType="com.xixi.entity.JobApplication">
+        SELECT *
+        FROM job_application
+        WHERE student_id = #{studentId}
+          AND id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectByEnterpriseAndId" resultType="com.xixi.entity.JobApplication">
+        SELECT *
+        FROM job_application
+        WHERE enterprise_id = #{enterpriseId}
+          AND id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectStudentApplicationPage" resultType="java.util.LinkedHashMap">
+        SELECT
+            ja.id AS applicationId,
+            ja.application_no AS applicationNo,
+            ja.job_id AS jobId,
+            ja.enterprise_id AS enterpriseId,
+            ja.resume_id AS resumeId,
+            ja.status AS status,
+            ja.latest_communication_type AS latestCommunicationType,
+            ja.latest_communication_time AS latestCommunicationTime,
+            ja.read_by_student AS readByStudent,
+            ja.submitted_time AS submittedTime,
+            ja.updated_time AS updatedTime,
+            ja.job_snapshot_json AS jobSnapshotJson,
+            ja.enterprise_snapshot_json AS enterpriseSnapshotJson,
+            ja.resume_snapshot_json AS resumeSnapshotJson
+        FROM job_application ja
+        WHERE ja.student_id = #{studentId}
+        <if test="status != null and status != ''">
+            AND ja.status = #{status}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                JSON_UNQUOTE(JSON_EXTRACT(ja.job_snapshot_json, '$.jobTitle')) LIKE CONCAT('%', #{keyword}, '%')
+                OR JSON_UNQUOTE(JSON_EXTRACT(ja.enterprise_snapshot_json, '$.enterpriseName')) LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY ja.updated_time DESC, ja.id DESC
+    </select>
+
+    <select id="selectTalentApplicationPage" resultType="java.util.LinkedHashMap">
+        SELECT
+            ja.id AS applicationId,
+            ja.application_no AS applicationNo,
+            ja.job_id AS jobId,
+            ja.resume_id AS resumeId,
+            ja.status AS status,
+            ja.match_score AS matchScore,
+            ja.latest_communication_type AS latestCommunicationType,
+            ja.latest_communication_time AS latestCommunicationTime,
+            ja.submitted_time AS submittedTime,
+            ja.updated_time AS updatedTime,
+            ja.job_snapshot_json AS jobSnapshotJson,
+            ja.resume_snapshot_json AS resumeSnapshotJson,
+            s.id AS studentId,
+            s.student_number AS studentNumber,
+            COALESCE(u.real_name, u.nickname) AS studentName
+        FROM job_application ja
+        LEFT JOIN education_user_db.students s ON s.id = ja.student_id
+        LEFT JOIN education_user_db.users u ON u.id = s.user_id
+        WHERE ja.enterprise_id = #{enterpriseId}
+        <if test="jobId != null">
+            AND ja.job_id = #{jobId}
+        </if>
+        <if test="status != null and status != ''">
+            AND ja.status = #{status}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                COALESCE(u.real_name, u.nickname) LIKE CONCAT('%', #{keyword}, '%')
+                OR s.student_number LIKE CONCAT('%', #{keyword}, '%')
+                OR JSON_UNQUOTE(JSON_EXTRACT(ja.resume_snapshot_json, '$.resumeTitle')) LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY ja.updated_time DESC, ja.id DESC
+    </select>
+
+    <select id="selectStudentResumeOptionList" resultType="java.util.LinkedHashMap">
+        SELECT
+            r.id AS resumeId,
+            r.resume_title AS resumeTitle,
+            r.visibility AS visibility,
+            r.is_default AS isDefault,
+            r.status AS status,
+            IFNULL(edu.educationCount, 0) AS educationCount,
+            IFNULL(exp.experienceCount, 0) AS experienceCount,
+            IFNULL(proj.projectCount, 0) AS projectCount,
+            IFNULL(skill.skillCount, 0) AS skillCount,
+            IFNULL(cert.certificateCount, 0) AS certificateCount,
+            CASE WHEN r.contact_email IS NULL OR r.contact_email = '' THEN 0 ELSE 1 END AS hasContactEmail,
+            CASE WHEN r.contact_phone IS NULL OR r.contact_phone = '' THEN 0 ELSE 1 END AS hasContactPhone,
+            CASE WHEN r.career_objective IS NULL OR r.career_objective = '' THEN 0 ELSE 1 END AS hasCareerObjective,
+            CASE WHEN r.self_introduction IS NULL OR r.self_introduction = '' THEN 0 ELSE 1 END AS hasSelfIntroduction
+        FROM education_resume_db.resume r
+        LEFT JOIN (
+            SELECT resume_id, COUNT(1) AS educationCount
+            FROM education_resume_db.resume_education
+            GROUP BY resume_id
+        ) edu ON edu.resume_id = r.id
+        LEFT JOIN (
+            SELECT resume_id, COUNT(1) AS experienceCount
+            FROM education_resume_db.resume_experience
+            GROUP BY resume_id
+        ) exp ON exp.resume_id = r.id
+        LEFT JOIN (
+            SELECT resume_id, COUNT(1) AS projectCount
+            FROM education_resume_db.resume_project
+            GROUP BY resume_id
+        ) proj ON proj.resume_id = r.id
+        LEFT JOIN (
+            SELECT resume_id, COUNT(1) AS skillCount
+            FROM education_resume_db.resume_skill
+            GROUP BY resume_id
+        ) skill ON skill.resume_id = r.id
+        LEFT JOIN (
+            SELECT resume_id, COUNT(1) AS certificateCount
+            FROM education_resume_db.resume_certificate
+            GROUP BY resume_id
+        ) cert ON cert.resume_id = r.id
+        WHERE r.student_id = #{studentId}
+        ORDER BY IFNULL(r.is_default, 0) DESC, r.updated_time DESC, r.created_time DESC, r.id DESC
+    </select>
+
+    <select id="selectResumeSnapshotSource" resultType="java.util.LinkedHashMap">
+        SELECT
+            r.id AS resumeId,
+            r.student_id AS studentId,
+            r.resume_title AS resumeTitle,
+            r.visibility AS visibility,
+            r.is_default AS isDefault,
+            r.status AS status,
+            r.contact_email AS contactEmail,
+            r.contact_phone AS contactPhone,
+            r.career_objective AS careerObjective,
+            r.self_introduction AS selfIntroduction,
+            IFNULL(skill.skillSummary, '') AS skillSummary,
+            IFNULL(edu.educationCount, 0) AS educationCount,
+            IFNULL(exp.experienceCount, 0) AS experienceCount,
+            IFNULL(proj.projectCount, 0) AS projectCount,
+            IFNULL(skill.skillCount, 0) AS skillCount,
+            IFNULL(cert.certificateCount, 0) AS certificateCount,
+            CASE WHEN r.contact_email IS NULL OR r.contact_email = '' THEN 0 ELSE 1 END AS hasContactEmail,
+            CASE WHEN r.contact_phone IS NULL OR r.contact_phone = '' THEN 0 ELSE 1 END AS hasContactPhone,
+            CASE WHEN r.career_objective IS NULL OR r.career_objective = '' THEN 0 ELSE 1 END AS hasCareerObjective,
+            CASE WHEN r.self_introduction IS NULL OR r.self_introduction = '' THEN 0 ELSE 1 END AS hasSelfIntroduction
+        FROM education_resume_db.resume r
+        LEFT JOIN (
+            SELECT resume_id, COUNT(1) AS educationCount
+            FROM education_resume_db.resume_education
+            GROUP BY resume_id
+        ) edu ON edu.resume_id = r.id
+        LEFT JOIN (
+            SELECT resume_id, COUNT(1) AS experienceCount
+            FROM education_resume_db.resume_experience
+            GROUP BY resume_id
+        ) exp ON exp.resume_id = r.id
+        LEFT JOIN (
+            SELECT resume_id, COUNT(1) AS projectCount
+            FROM education_resume_db.resume_project
+            GROUP BY resume_id
+        ) proj ON proj.resume_id = r.id
+        LEFT JOIN (
+            SELECT
+                rs.resume_id AS resume_id,
+                COUNT(1) AS skillCount,
+                GROUP_CONCAT(rs.skill_name ORDER BY rs.sort_order ASC, rs.created_time ASC SEPARATOR ' / ') AS skillSummary
+            FROM education_resume_db.resume_skill rs
+            GROUP BY rs.resume_id
+        ) skill ON skill.resume_id = r.id
+        LEFT JOIN (
+            SELECT resume_id, COUNT(1) AS certificateCount
+            FROM education_resume_db.resume_certificate
+            GROUP BY resume_id
+        ) cert ON cert.resume_id = r.id
+        WHERE r.id = #{resumeId}
+          AND r.student_id = #{studentId}
+        LIMIT 1
+    </select>
+
+    <select id="selectResumeCertificateSnapshotList" resultType="java.util.LinkedHashMap">
+        SELECT
+            c.id AS certificateId,
+            c.certificate_name AS certificateName,
+            c.certificate_number AS certificateNumber,
+            c.status AS status,
+            CASE WHEN c.status IN ('ISSUED', 'ACTIVE', 'VALID') THEN 1 ELSE 0 END AS verified,
+            c.last_verification_time AS verifiedTime
+        FROM education_resume_db.resume_certificate rc
+        INNER JOIN education_certificate_db.certificate c ON c.id = rc.certificate_id
+        WHERE rc.resume_id = #{resumeId}
+          AND c.student_id = #{studentId}
+        ORDER BY rc.sort_order ASC, rc.id ASC
+    </select>
+
+    <select id="selectTalentApplicationStudentInfo" resultType="java.util.LinkedHashMap">
+        SELECT
+            ja.student_id AS studentId,
+            COALESCE(u.real_name, u.nickname) AS studentName,
+            s.student_number AS studentNumber,
+            u.avatar AS avatarUrl,
+            edu.major AS major,
+            edu.degree AS degree,
+            edu.school_name AS schoolName
+        FROM job_application ja
+        LEFT JOIN education_user_db.students s ON s.id = ja.student_id
+        LEFT JOIN education_user_db.users u ON u.id = s.user_id
+        LEFT JOIN (
+            SELECT t.resume_id, t.school_name, t.degree, t.major
+            FROM (
+                SELECT
+                    re.resume_id,
+                    re.school_name,
+                    re.degree,
+                    re.major,
+                    ROW_NUMBER() OVER(PARTITION BY re.resume_id ORDER BY re.sort_order ASC, re.created_time ASC, re.id ASC) AS rn
+                FROM education_resume_db.resume_education re
+            ) t
+            WHERE t.rn = 1
+        ) edu ON edu.resume_id = ja.resume_id
+        WHERE ja.id = #{applicationId}
+          AND ja.enterprise_id = #{enterpriseId}
+        LIMIT 1
+    </select>
+
+    <select id="selectJobStatusStats" resultType="java.util.LinkedHashMap">
+        SELECT
+            status AS status,
+            COUNT(1) AS totalCount
+        FROM job_application
+        WHERE job_id = #{jobId}
+          AND enterprise_id = #{enterpriseId}
+        GROUP BY status
+    </select>
+
+    <update id="updateStudentReadFlag">
+        UPDATE job_application
+        SET read_by_student = #{readByStudent},
+            updated_time = NOW()
+        WHERE id = #{id}
+          AND student_id = #{studentId}
+    </update>
+
+    <update id="updateEnterpriseReadFlag">
+        UPDATE job_application
+        SET read_by_enterprise = #{readByEnterprise},
+            updated_time = NOW()
+        WHERE id = #{id}
+          AND enterprise_id = #{enterpriseId}
+    </update>
+
+    <update id="updateApplicationStatus">
+        UPDATE job_application
+        SET status = #{status},
+            remark = #{remark},
+            read_by_student = #{readByStudent},
+            updated_time = #{updatedTime}
+        WHERE id = #{id}
+          AND enterprise_id = #{enterpriseId}
+    </update>
+
+    <update id="updateApplicationAfterCommunication">
+        UPDATE job_application
+        SET latest_communication_id = #{latestCommunicationId},
+            latest_communication_type = #{latestCommunicationType},
+            latest_communication_time = #{latestCommunicationTime},
+            read_by_student = #{readByStudent},
+            read_by_enterprise = #{readByEnterprise},
+            updated_time = #{updatedTime}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateApplicationWithdraw">
+        UPDATE job_application
+        SET status = #{status},
+            read_by_enterprise = #{readByEnterprise},
+            updated_time = #{updatedTime}
+        WHERE id = #{id}
+          AND student_id = #{studentId}
+    </update>
+
+    <select id="countActiveByJobAndStudent" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM job_application
+        WHERE job_id = #{jobId}
+          AND student_id = #{studentId}
+          AND status NOT IN ('WITHDRAWN', 'CLOSED', 'REJECTED')
+    </select>
+
+    <select id="selectEnterpriseUserIdByJobId" resultType="java.lang.Long">
+        SELECT e.user_id
+        FROM job_posting jp
+        INNER JOIN education_user_db.enterprises e ON e.id = jp.enterprise_id
+        WHERE jp.id = #{jobId}
+        LIMIT 1
+    </select>
+
+    <select id="selectStudentUserIdByStudentId" resultType="java.lang.Long">
+        SELECT user_id
+        FROM education_user_db.students
+        WHERE id = #{studentId}
+        LIMIT 1
+    </select>
+
+    <select id="selectStudentIdByUserId" resultType="java.lang.Long">
+        SELECT id
+        FROM education_user_db.students
+        WHERE user_id = #{userId}
+        LIMIT 1
+    </select>
+
+</mapper>

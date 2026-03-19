@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.AuditRecordMapper">
+
+    <select id="selectAuditPage" resultType="com.xixi.entity.AuditRecord">
+        SELECT *
+        FROM audit_record
+        <where>
+            <if test="auditType != null and auditType != ''">
+                AND audit_type = #{auditType}
+            </if>
+            <if test="auditStatus != null and auditStatus != ''">
+                AND audit_status = #{auditStatus}
+            </if>
+            <if test="targetName != null and targetName != ''">
+                AND target_name LIKE CONCAT('%', #{targetName}, '%')
+            </if>
+            <if test="applicantName != null and applicantName != ''">
+                AND applicant_name LIKE CONCAT('%', #{applicantName}, '%')
+            </if>
+            <if test="startTime != null">
+                AND created_time <![CDATA[ >= ]]> #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_time <![CDATA[ <= ]]> #{endTime}
+            </if>
+        </where>
+        ORDER BY created_time DESC, id DESC
+    </select>
+
+    <update id="updateAuditDecisionIfPending">
+        UPDATE audit_record
+        SET auditor_id = #{auditorId},
+            auditor_name = #{auditorName},
+            audit_status = #{auditStatus},
+            audit_opinion = #{auditOpinion},
+            reject_reason = #{rejectReason},
+            audit_time = #{auditTime},
+            updated_time = #{updatedTime}
+        WHERE id = #{id}
+          AND audit_status = 'PENDING'
+    </update>
+
+    <select id="selectAuditStatRows" resultType="com.xixi.pojo.vo.admin.AuditStatRowVo">
+        SELECT
+            audit_type AS auditType,
+            COUNT(1) AS totalCount,
+            SUM(CASE WHEN audit_status = 'PENDING' THEN 1 ELSE 0 END) AS pendingCount,
+            SUM(CASE WHEN audit_status = 'APPROVED' THEN 1 ELSE 0 END) AS approvedCount,
+            SUM(CASE WHEN audit_status = 'REJECTED' THEN 1 ELSE 0 END) AS rejectedCount
+        FROM audit_record
+        <where>
+            <if test="auditType != null and auditType != ''">
+                AND audit_type = #{auditType}
+            </if>
+        </where>
+        GROUP BY audit_type
+        ORDER BY audit_type ASC
+    </select>
+
+    <select id="selectLatestByTypeAndTargetId" resultType="com.xixi.entity.AuditRecord">
+        SELECT *
+        FROM audit_record
+        WHERE audit_type = #{auditType}
+          AND target_id = #{targetId}
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectCertificateAuditPage" resultType="com.xixi.entity.AuditRecord">
+        SELECT *
+        FROM audit_record
+        WHERE audit_type IN ('CERTIFICATE', 'CERTIFICATE_APPEAL')
+        <if test="certificateNumber != null and certificateNumber != ''">
+            AND target_name LIKE CONCAT('%', #{certificateNumber}, '%')
+        </if>
+        <if test="status != null and status != ''">
+            AND audit_status = #{status}
+        </if>
+        ORDER BY created_time DESC, id DESC
+    </select>
+
+</mapper>

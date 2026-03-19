@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.JobApplicationStatusLogMapper">
+
+    <select id="selectByApplicationId" resultType="com.xixi.entity.JobApplicationStatusLog">
+        SELECT *
+        FROM job_application_status_log
+        WHERE application_id = #{applicationId}
+        ORDER BY created_time ASC, id ASC
+    </select>
+
+</mapper>

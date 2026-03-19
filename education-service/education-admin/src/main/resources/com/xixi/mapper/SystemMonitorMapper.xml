@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.SystemMonitorMapper">
+
+    <select id="selectHealthOverview" resultType="com.xixi.pojo.vo.admin.MonitorHealthVo">
+        SELECT
+            COUNT(1) AS totalServices,
+            SUM(CASE WHEN t.status = 'UP' THEN 1 ELSE 0 END) AS upCount,
+            SUM(CASE WHEN t.status = 'DOWN' THEN 1 ELSE 0 END) AS downCount,
+            SUM(CASE WHEN t.status = 'WARNING' THEN 1 ELSE 0 END) AS warningCount,
+            CAST(ROUND(AVG(t.avg_response_time), 2) AS DECIMAL(10,2)) AS avgResponseTime
+        FROM (
+            SELECT sm.*
+            FROM system_monitor sm
+            INNER JOIN (
+                SELECT service_name, MAX(report_time) AS max_report_time
+                FROM system_monitor
+                GROUP BY service_name
+            ) latest
+            ON sm.service_name = latest.service_name
+            AND sm.report_time = latest.max_report_time
+        ) t
+    </select>
+
+    <select id="selectServiceLatestPage" resultType="com.xixi.entity.SystemMonitor">
+        SELECT sm.*
+        FROM system_monitor sm
+        INNER JOIN (
+            SELECT service_name, MAX(report_time) AS max_report_time
+            FROM system_monitor
+            GROUP BY service_name
+        ) latest
+        ON sm.service_name = latest.service_name
+        AND sm.report_time = latest.max_report_time
+        <where>
+            <if test="serviceName != null and serviceName != ''">
+                AND sm.service_name LIKE CONCAT('%', #{serviceName}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND sm.status = #{status}
+            </if>
+        </where>
+        ORDER BY sm.report_time DESC, sm.service_name ASC
+    </select>
+
+    <select id="selectServiceDetail" resultType="com.xixi.entity.SystemMonitor">
+        SELECT *
+        FROM system_monitor
+        WHERE service_name = #{serviceName}
+        ORDER BY report_time DESC, id DESC
+        LIMIT #{limitSize}
+    </select>
+
+    <select id="selectAlertPage" resultType="com.xixi.entity.SystemMonitor">
+        SELECT *
+        FROM system_monitor
+        <where>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="minCpuUsage != null">
+                AND cpu_usage <![CDATA[ >= ]]> #{minCpuUsage}
+            </if>
+            <if test="minMemoryUsage != null">
+                AND memory_usage <![CDATA[ >= ]]> #{minMemoryUsage}
+            </if>
+            <if test="minErrorRate != null">
+                AND request_count > 0
+                AND (error_count / request_count) <![CDATA[ >= ]]> #{minErrorRate}
+            </if>
+            <if test="status == null or status == ''">
+                AND (
+                    status != 'UP'
+                    OR cpu_usage <![CDATA[ >= ]]> 80
+                    OR memory_usage <![CDATA[ >= ]]> 80
+                )
+            </if>
+        </where>
+        ORDER BY report_time DESC, id DESC
+    </select>
+
+</mapper>

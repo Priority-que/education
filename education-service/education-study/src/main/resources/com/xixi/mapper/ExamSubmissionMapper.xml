@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.ExamSubmissionMapper">
+
+    <!-- 测验提交结果映射 -->
+    <resultMap id="ExamSubmissionVoMap" type="com.xixi.pojo.vo.ExamSubmissionVo">
+        <id column="id" property="id"/>
+        <result column="exam_id" property="examId"/>
+        <result column="examTitle" property="examTitle"/>
+        <result column="exam_type" property="examType"/>
+        <result column="course_id" property="courseId"/>
+        <result column="student_id" property="studentId"/>
+        <result column="start_time" property="startTime"/>
+        <result column="submit_time" property="submitTime"/>
+        <result column="answers" property="answers"/>
+        <result column="total_score" property="totalScore"/>
+        <result column="status" property="status"/>
+        <result column="created_time" property="createdTime"/>
+    </resultMap>
+
+    <!-- 分页查询测验提交列表 -->
+    <select id="selectExamSubmissionPage" resultMap="ExamSubmissionVoMap">
+        SELECT
+            es.id,
+            es.exam_id,
+            e.course_id,
+            e.exam_title as examTitle,
+            e.exam_type,
+            es.student_id,
+            es.start_time,
+            es.submit_time,
+            es.answers,
+            es.total_score,
+            es.status,
+            es.created_time
+        FROM exam_submission es
+        LEFT JOIN exam e ON es.exam_id = e.id
+        <where>
+            <if test="q.studentId != null">
+                AND es.student_id = #{q.studentId}
+            </if>
+            <if test="q.examType != null and q.examType != ''">
+                AND e.exam_type = #{q.examType}
+            </if>
+            <if test="q.courseId != null">
+                AND e.course_id = #{q.courseId}
+            </if>
+        </where>
+        ORDER BY es.submit_time DESC, es.created_time DESC
+    </select>
+
+    <!-- 教师端分页查询测验提交列表 -->
+    <select id="selectTeacherExamSubmissionPage" resultMap="ExamSubmissionVoMap">
+        SELECT
+            es.id,
+            es.exam_id,
+            e.course_id,
+            e.exam_title AS examTitle,
+            e.exam_type,
+            es.student_id,
+            es.start_time,
+            es.submit_time,
+            es.answers,
+            es.total_score,
+            es.status,
+            es.created_time
+        FROM exam_submission es
+        INNER JOIN exam e ON es.exam_id = e.id
+        <where>
+            AND e.teacher_id = #{q.teacherId}
+            <if test="q.examId != null">
+                AND es.exam_id = #{q.examId}
+            </if>
+            <if test="q.courseId != null">
+                AND e.course_id = #{q.courseId}
+            </if>
+            <if test="q.examType != null and q.examType != ''">
+                AND e.exam_type = #{q.examType}
+            </if>
+            <if test="q.status != null and q.status != ''">
+                AND es.status = #{q.status}
+            </if>
+        </where>
+        ORDER BY
+        <choose>
+            <when test="q.sortBy != null and q.sortBy == 'startTime'">
+                es.start_time
+            </when>
+            <when test="q.sortBy != null and q.sortBy == 'totalScore'">
+                es.total_score
+            </when>
+            <otherwise>
+                es.submit_time
+            </otherwise>
+        </choose>
+        <choose>
+            <when test="q.sortOrder != null and q.sortOrder == 'ASC'">
+                ASC
+            </when>
+            <otherwise>
+                DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 根据测验ID和学生ID查询提交记录 -->
+    <select id="selectByExamAndStudent" resultType="com.xixi.entity.ExamSubmission">
+        SELECT
+            id,
+            exam_id,
+            student_id,
+            start_time,
+            submit_time,
+            answers,
+            total_score,
+            status,
+            created_time,
+            updated_time
+        FROM exam_submission
+        WHERE exam_id = #{examId}
+          AND student_id = #{studentId}
+        ORDER BY created_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- 查询提交详情 -->
+    <select id="selectSubmissionDetail" resultMap="ExamSubmissionVoMap">
+        SELECT
+            es.id,
+            e.exam_title as examTitle,
+            e.exam_type,
+            e.course_id,
+            es.exam_id,
+            es.student_id,
+            es.start_time,
+            es.submit_time,
+            es.answers,
+            es.total_score,
+            es.status,
+            es.created_time
+        FROM exam_submission es 
+        LEFT JOIN exam e ON es.exam_id = e.id
+        WHERE es.id = #{submissionId}
+    </select>
+
+    <!-- 教师端查询提交详情（带教师权限） -->
+    <select id="selectTeacherExamSubmissionDetail" resultMap="ExamSubmissionVoMap">
+        SELECT
+            es.id,
+            e.exam_title AS examTitle,
+            e.exam_type,
+            e.course_id,
+            es.exam_id,
+            es.student_id,
+            es.start_time,
+            es.submit_time,
+            es.answers,
+            es.total_score,
+            es.status,
+            es.created_time
+        FROM exam_submission es
+        INNER JOIN exam e ON es.exam_id = e.id
+        WHERE es.id = #{submissionId}
+          AND e.teacher_id = #{teacherId}
+    </select>
+
+    <!-- 查询测验已完成提交记录 -->
+    <select id="selectCompletedByExamId" resultType="com.xixi.entity.ExamSubmission">
+        SELECT
+            id,
+            exam_id,
+            student_id,
+            start_time,
+            submit_time,
+            answers,
+            total_score,
+            status,
+            created_time,
+            updated_time
+        FROM exam_submission
+        WHERE exam_id = #{examId}
+          AND status IN ('GRADED', 'AUTO_GRADED', 'MANUAL_GRADED')
+    </select>
+
+    <!-- 查询学生课程测验完成进度（含未参与测验） -->
+    <select id="selectExamProgressByStudentAndCourse" resultType="com.xixi.pojo.vo.StudentCourseDetailVo$ExamProgressVo">
+        SELECT
+            e.id AS examId,
+            e.exam_title AS examTitle,
+            CASE
+                WHEN latest_es.status IS NOT NULL THEN latest_es.status
+                ELSE 'NOT_PARTICIPATED'
+                END AS status,
+            latest_es.total_score AS score
+        FROM exam e
+                 LEFT JOIN (
+            SELECT
+                es.id,
+                es.exam_id,
+                es.status,
+                es.total_score
+            FROM exam_submission es
+                     INNER JOIN (
+                SELECT
+                    exam_id,
+                    MAX(id) AS max_id
+                FROM exam_submission
+                WHERE student_id = #{studentId}
+                GROUP BY exam_id
+            ) latest ON es.id = latest.max_id
+        ) latest_es ON e.id = latest_es.exam_id
+        WHERE e.course_id = #{courseId}
+          AND (e.status = 'PUBLISHED' OR e.status = 'IN_PROGRESS' OR e.status = 'ENDED')
+        ORDER BY e.start_time DESC, e.id DESC
+    </select>
+
+    <!-- 教师端查询学生课程测验提交情况（含未参与测验） -->
+    <select id="selectTeacherStudentExamSubmissions" resultType="com.xixi.pojo.vo.TeacherStudentDetailVo$ExamSubmissionInfo">
+        SELECT
+            e.id AS examId,
+            e.exam_title AS examTitle,
+            CASE
+                WHEN latest_es.status IS NOT NULL THEN latest_es.status
+                ELSE 'NOT_PARTICIPATED'
+                END AS status,
+            latest_es.total_score AS score,
+            latest_es.submit_time AS submitTime
+        FROM exam e
+                 LEFT JOIN (
+            SELECT
+                es.id,
+                es.exam_id,
+                es.status,
+                es.total_score,
+                es.submit_time
+            FROM exam_submission es
+                     INNER JOIN (
+                SELECT
+                    exam_id,
+                    MAX(id) AS max_id
+                FROM exam_submission
+                WHERE student_id = #{studentId}
+                GROUP BY exam_id
+            ) latest ON es.id = latest.max_id
+        ) latest_es ON e.id = latest_es.exam_id
+        WHERE e.course_id = #{courseId}
+        ORDER BY e.start_time DESC, e.id DESC
+    </select>
+
+    <!-- 教师端按课程统计各测验平均分 -->
+    <select id="selectCourseExamAverageScores" resultType="java.util.Map">
+        SELECT
+            e.id AS examId,
+            e.exam_title AS examTitle,
+            COALESCE(AVG(es.total_score), 0) AS averageScore
+        FROM exam e
+                 LEFT JOIN exam_submission es
+                           ON es.exam_id = e.id
+                               AND es.status IN ('GRADED', 'AUTO_GRADED', 'MANUAL_GRADED')
+        WHERE e.course_id = #{courseId}
+        GROUP BY e.id, e.exam_title
+        ORDER BY e.start_time ASC, e.id ASC
+    </select>
+
+    <!-- 教师端按课程统计测验成绩分段分布 -->
+    <select id="selectCourseExamScoreRangeDistribution" resultType="java.util.Map">
+        SELECT
+            CASE
+                WHEN es.total_score &gt;= 90 THEN '90-100'
+                WHEN es.total_score &gt;= 80 THEN '80-89'
+                WHEN es.total_score &gt;= 70 THEN '70-79'
+                WHEN es.total_score &gt;= 60 THEN '60-69'
+                ELSE '0-59'
+                END AS scoreRange,
+            COUNT(1) AS count
+        FROM exam_submission es
+                 INNER JOIN exam e ON e.id = es.exam_id
+        WHERE e.course_id = #{courseId}
+          AND es.status IN ('GRADED', 'AUTO_GRADED', 'MANUAL_GRADED')
+          AND es.total_score IS NOT NULL
+        GROUP BY
+            CASE
+                WHEN es.total_score &gt;= 90 THEN '90-100'
+                WHEN es.total_score &gt;= 80 THEN '80-89'
+                WHEN es.total_score &gt;= 70 THEN '70-79'
+                WHEN es.total_score &gt;= 60 THEN '60-69'
+                ELSE '0-59'
+                END
+    </select>
+
+    <!-- 教师端按课程查询已完成测验提交记录 -->
+    <select id="selectCompletedByCourseId" resultType="com.xixi.entity.ExamSubmission">
+        SELECT
+            es.id,
+            es.exam_id,
+            es.student_id,
+            es.start_time,
+            es.submit_time,
+            es.answers,
+            es.total_score,
+            es.status,
+            es.created_time,
+            es.updated_time
+        FROM exam_submission es
+                 INNER JOIN exam e ON e.id = es.exam_id
+        WHERE e.course_id = #{courseId}
+          AND es.status IN ('GRADED', 'AUTO_GRADED', 'MANUAL_GRADED')
+    </select>
+
+    <!-- 教师端按课程查询客观题列表（含正确答案） -->
+    <select id="selectCourseObjectiveQuestionList" resultType="java.util.Map">
+        SELECT
+            e.id AS examId,
+            e.exam_title AS examTitle,
+            eq.id AS questionId,
+            eq.question_type AS questionType,
+            eq.question_content AS questionContent,
+            eq.correct_answer AS correctAnswer
+        FROM exam_question eq
+                 INNER JOIN exam e ON e.id = eq.exam_id
+        WHERE e.course_id = #{courseId}
+          AND eq.question_type IN ('SINGLE_CHOICE', 'MULTI_CHOICE', 'TRUE_FALSE', 'FILL_BLANK')
+        ORDER BY e.start_time ASC, e.id ASC, eq.sort_order ASC, eq.id ASC
+    </select>
+
+</mapper>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.CertificateShareMapper">
+
+    <select id="selectMySharePage" resultType="com.xixi.entity.CertificateShare">
+        SELECT *
+        FROM certificate_share
+        WHERE student_id = #{studentId}
+        <if test="certificateId != null">
+            AND certificate_id = #{certificateId}
+        </if>
+        <if test="isActive != null">
+            AND is_active = #{isActive}
+        </if>
+        ORDER BY created_time DESC
+    </select>
+
+    <select id="selectByShareToken" resultType="com.xixi.entity.CertificateShare">
+        SELECT *
+        FROM certificate_share
+        WHERE share_token = #{shareToken}
+        LIMIT 1
+    </select>
+
+    <update id="increaseViewCount">
+        UPDATE certificate_share
+        SET view_count = IFNULL(view_count, 0) + 1,
+            updated_time = #{updatedTime}
+        WHERE id = #{shareId}
+    </update>
+
+</mapper>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.TeacherVerificationMapper">
+
+    <select id="selectCurrentByTeacher" resultType="com.xixi.entity.TeacherVerification">
+        SELECT *
+        FROM teacher_verification
+        WHERE teacher_id = #{teacherId}
+        ORDER BY submitted_time DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectHistoryPage" resultType="com.xixi.entity.TeacherVerification">
+        SELECT *
+        FROM teacher_verification
+        <where>
+            <if test="teacherId != null">
+                AND teacher_id = #{teacherId}
+            </if>
+        </where>
+        ORDER BY submitted_time DESC, id DESC
+    </select>
+
+</mapper>

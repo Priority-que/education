@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.StudentCourseMapper">
+
+    <!-- 分页查询学生课程列表（只查询student_course表，课程信息通过OpenFeign获取） -->
+    <select id="selectMyCoursesPage" resultType="com.xixi.pojo.vo.StudentCourseVo">
+        SELECT
+            sc.id,
+            sc.student_id,
+            sc.course_id,
+            sc.course_name,
+            sc.teacher_id,
+            sc.teacher_name,
+            sc.selected_time,
+            sc.learning_status,
+            sc.progress_percentage,
+            sc.total_study_time,
+            sc.last_study_time,
+            sc.completed_time,
+            sc.rating,
+            sc.review_content,
+            sc.created_time,
+            sc.updated_time
+        FROM student_course sc
+        <where>
+            <if test="q.studentId != null">
+                AND sc.student_id = #{q.studentId}
+            </if>
+            <if test="q.courseId != null">
+                AND sc.course_id = #{q.courseId}
+            </if>
+            <if test="q.keyword != null and q.keyword != ''">
+                AND sc.course_name LIKE CONCAT('%', #{q.keyword}, '%')
+            </if>
+            <if test="q.persistedLearningStatus == null or q.persistedLearningStatus == ''">
+                AND (sc.learning_status IS NULL OR sc.learning_status != 'DROPPED')
+            </if>
+            <if test="q.persistedLearningStatus != null and q.persistedLearningStatus != ''">
+                AND sc.learning_status = #{q.persistedLearningStatus}
+            </if>
+            <if test="q.notStartedOnly != null and q.notStartedOnly">
+                AND IFNULL(sc.progress_percentage, 0) = 0
+            </if>
+        </where>
+        ORDER BY
+        <choose>
+            <when test="q.sortBy != null and q.sortBy != ''">
+                <choose>
+                    <when test="q.sortBy == 'selectedTime'">
+                        sc.selected_time
+                    </when>
+                    <when test="q.sortBy == 'progressPercentage'">
+                        sc.progress_percentage
+                    </when>
+                    <when test="q.sortBy == 'lastStudyTime'">
+                        sc.last_study_time
+                    </when>
+                    <otherwise>
+                        sc.selected_time
+                    </otherwise>
+                </choose>
+                <choose>
+                    <when test="q.sortOrder != null and q.sortOrder == 'ASC'">
+                        ASC
+                    </when>
+                    <otherwise>
+                        DESC
+                    </otherwise>
+                </choose>
+            </when>
+            <otherwise>
+                sc.selected_time DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 根据学生ID和课程ID查询选课记录 -->
+    <select id="selectByStudentIdAndCourseId" resultType="com.xixi.entity.StudentCourse">
+        SELECT
+            id,
+            student_id,
+            course_id,
+            course_name,
+            teacher_id,
+            teacher_name,
+            selected_time,
+            learning_status,
+            progress_percentage,
+            total_study_time,
+            last_study_time,
+            completed_time,
+            rating,
+            review_content,
+            created_time,
+            updated_time
+        FROM student_course
+        WHERE student_id = #{studentId}
+          AND course_id = #{courseId}
+          AND learning_status != 'DROPPED'
+    </select>
+
+    <select id="selectAnyByStudentIdAndCourseId" resultType="com.xixi.entity.StudentCourse">
+        SELECT
+            id,
+            student_id,
+            course_id,
+            course_name,
+            teacher_id,
+            teacher_name,
+            selected_time,
+            learning_status,
+            progress_percentage,
+            total_study_time,
+            last_study_time,
+            completed_time,
+            rating,
+            review_content,
+            created_time,
+            updated_time
+        FROM student_course
+        WHERE student_id = #{studentId}
+          AND course_id = #{courseId}
+        ORDER BY updated_time DESC, created_time DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <!-- 查询课程学习详情（只查询student_course表，课程信息通过OpenFeign获取） -->
+    <select id="selectCourseDetail" resultType="com.xixi.pojo.vo.StudentCourseVo">
+        SELECT
+            sc.id,
+            sc.student_id,
+            sc.course_id,
+            sc.course_name,
+            sc.teacher_id,
+            sc.teacher_name,
+            sc.selected_time,
+            sc.learning_status,
+            sc.progress_percentage,
+            sc.total_study_time,
+            sc.last_study_time,
+            sc.completed_time,
+            sc.rating,
+            sc.review_content,
+            sc.created_time,
+            sc.updated_time
+        FROM student_course sc
+        WHERE sc.student_id = #{studentId}
+          AND sc.course_id = #{courseId}
+    </select>
+
+    <!-- 教师端：分页查询选课学生名单（只查询student_course表，学生信息通过OpenFeign获取） -->
+    <select id="selectTeacherStudentListPage" resultType="com.xixi.pojo.vo.TeacherStudentCourseVo">
+        SELECT
+            sc.id,
+            sc.student_id,
+            sc.course_id,
+            sc.course_name,
+            sc.selected_time,
+            sc.learning_status,
+            sc.progress_percentage,
+            sc.total_study_time,
+            sc.last_study_time,
+            sc.completed_time,
+            sc.rating,
+            sc.created_time,
+            sc.updated_time
+        FROM student_course sc
+        <where>
+            <if test="q.courseId != null">
+                AND sc.course_id = #{q.courseId}
+            </if>
+            <if test="q.learningStatus != null and q.learningStatus != ''">
+                AND sc.learning_status = #{q.learningStatus}
+            </if>
+        </where>
+        ORDER BY
+        <choose>
+            <when test="q.sortBy != null and q.sortBy != ''">
+                <choose>
+                    <when test="q.sortBy == 'selectedTime'">
+                        sc.selected_time
+                    </when>
+                    <when test="q.sortBy == 'progressPercentage'">
+                        sc.progress_percentage
+                    </when>
+                    <when test="q.sortBy == 'totalStudyTime'">
+                        sc.total_study_time
+                    </when>
+                    <when test="q.sortBy == 'lastStudyTime'">
+                        sc.last_study_time
+                    </when>
+                    <otherwise>
+                        sc.selected_time
+                    </otherwise>
+                </choose>
+                <choose>
+                    <when test="q.sortOrder != null and q.sortOrder == 'ASC'">
+                        ASC
+                    </when>
+                    <otherwise>
+                        DESC
+                    </otherwise>
+                </choose>
+            </when>
+            <otherwise>
+                sc.selected_time DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 教师端：查询学生学习详情（只查询student_course表，学生信息通过OpenFeign获取） -->
+    <select id="selectTeacherStudentDetail" resultType="com.xixi.pojo.vo.TeacherStudentCourseVo">
+        SELECT
+            sc.id,
+            sc.student_id,
+            sc.course_id,
+            sc.course_name,
+            sc.selected_time,
+            sc.learning_status,
+            sc.progress_percentage,
+            sc.total_study_time,
+            sc.last_study_time,
+            sc.completed_time,
+            sc.rating,
+            sc.created_time,
+            sc.updated_time
+        FROM student_course sc
+        WHERE sc.course_id = #{courseId}
+          AND sc.student_id = #{studentId}
+    </select>
+
+    <!-- 教师端：查询课程所有学生（用于导出，只查询student_course表，学生信息通过OpenFeign获取） -->
+    <select id="selectAllStudentsByCourseId" resultType="com.xixi.pojo.vo.TeacherStudentCourseVo">
+        SELECT
+            sc.id,
+            sc.student_id,
+            sc.course_id,
+            sc.course_name,
+            sc.selected_time,
+            sc.learning_status,
+            sc.progress_percentage,
+            sc.total_study_time,
+            sc.last_study_time,
+            sc.completed_time,
+            sc.rating,
+            sc.created_time,
+            sc.updated_time
+        FROM student_course sc
+        WHERE sc.course_id = #{courseId}
+        ORDER BY sc.selected_time DESC
+    </select>
+
+    <!-- 根据学生ID查询选课记录 -->
+    <select id="selectByStudentId" resultType="com.xixi.entity.StudentCourse">
+        SELECT
+            id,
+            student_id,
+            course_id,
+            course_name,
+            teacher_id,
+            teacher_name,
+            selected_time,
+            learning_status,
+            progress_percentage,
+            total_study_time,
+            last_study_time,
+            completed_time,
+            rating,
+            review_content,
+            created_time,
+            updated_time
+        FROM student_course
+        WHERE student_id = #{studentId}
+        ORDER BY selected_time DESC
+    </select>
+
+    <!-- 教师端监控查询课程学生选课记录 -->
+    <select id="selectTeacherMonitorStudentCourses" resultType="com.xixi.pojo.vo.TeacherStudentCourseVo">
+        SELECT
+            sc.id,
+            sc.student_id,
+            sc.course_id,
+            sc.course_name,
+            sc.selected_time,
+            sc.learning_status,
+            sc.progress_percentage,
+            sc.total_study_time,
+            sc.last_study_time,
+            sc.completed_time,
+            sc.rating,
+            sc.created_time,
+            sc.updated_time
+        FROM student_course sc
+        WHERE sc.course_id = #{courseId}
+          AND sc.learning_status != 'DROPPED'
+        <if test="studentId != null">
+            AND sc.student_id = #{studentId}
+        </if>
+        ORDER BY sc.selected_time DESC
+    </select>
+
+</mapper>

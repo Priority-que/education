@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.CourseCommentMapper">
+
+    <!-- 分页查询评价列表 -->
+    <select id="selectCommentPage" resultType="com.xixi.pojo.vo.CourseCommentVo">
+        SELECT
+            id,
+            course_id      AS courseId,
+            video_id       AS videoId,
+            user_id        AS userId,
+            rating,
+            comment_content AS commentContent,
+            like_count     AS likeCount,
+            reply_count    AS replyCount,
+            is_anonymous   AS isAnonymous,
+            status,
+            created_time   AS createdTime,
+            updated_time   AS updatedTime
+        FROM course_comment
+        <where>
+            <if test="q.courseId != null">
+                AND course_id = #{q.courseId}
+            </if>
+            <if test="q.videoId != null">
+                AND video_id = #{q.videoId}
+            </if>
+            <if test="q.userId != null">
+                AND user_id = #{q.userId}
+            </if>
+            <if test="q.rating != null">
+                AND rating = #{q.rating}
+            </if>
+            <if test="q.status != null">
+                AND status = #{q.status}
+            </if>
+            <if test="q.beginTime != null and q.endTime != null">
+                AND created_time BETWEEN #{q.beginTime} AND #{q.endTime}
+            </if>
+        </where>
+        ORDER BY created_time DESC
+    </select>
+
+    <!-- 根据ID查询评价 -->
+    <select id="getCommentById" resultType="com.xixi.pojo.vo.CourseCommentVo">
+        SELECT
+            id,
+            course_id      AS courseId,
+            video_id       AS videoId,
+            user_id        AS userId,
+            rating,
+            comment_content AS commentContent,
+            like_count     AS likeCount,
+            reply_count    AS replyCount,
+            is_anonymous   AS isAnonymous,
+            status,
+            created_time   AS createdTime,
+            updated_time   AS updatedTime
+        FROM course_comment
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据ID列表批量删除 -->
+    <delete id="deleteByIds">
+        DELETE FROM course_comment
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

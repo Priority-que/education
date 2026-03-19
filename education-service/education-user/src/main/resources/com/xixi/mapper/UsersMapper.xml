@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.UsersMapper">
+    <select id="selectUserPage" resultType="com.xixi.pojo.vo.UsersVo">
+        select * from users
+        <where>
+            <if test="q.gender != null">
+              and  gender = #{q.gender}
+            </if>
+            <if test="q.nickname != null">
+                and nickname like CONCAT('%', #{q.nickname}, '%')
+            </if>
+            <if test="q.status != null">
+                and status = #{q.status}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectByUsername" resultType="com.xixi.entity.Users">
+        select * from users where username = #{username} limit 1
+    </select>
+
+    <select id="selectByPhone" resultType="com.xixi.entity.Users">
+        select * from users where phone = #{phone} order by id asc limit 1
+    </select>
+
+    <update id="updateLastLogin">
+        update users
+        set last_login_ip = #{ip},
+            last_login_time = #{time},
+            updated_time = now()
+        where id = #{id}
+    </update>
+
+    <select id="selectStatusById" resultType="java.lang.Integer">
+        select status from users where id = #{id}
+    </select>
+
+    <select id="selectRoleById" resultType="java.lang.Integer">
+        select role from users where id = #{id}
+    </select>
+</mapper>

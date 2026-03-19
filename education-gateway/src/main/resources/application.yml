@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: education-gateway
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      discovery:
+        enabled: true
+        server-addr: 192.168.108.230:8848
+        username: nacos
+        password: nacos
+      config:
+        enabled: true
+        server-addr: 192.168.108.230:8848
+        username: nacos
+        password: nacos
+  config:
+    import:
+      - nacos:education-common.yml
+      - nacos:education-gateway-route.yaml
+  web:
+    resources:
+      static-locations:
+        - classpath:/static/
+        - file:${user.dir}/../education_front/dist/
+        - file:${user.dir}/../../education_front/dist/
+server:
+  port: 8080
+
+auth:
+  jwt:
+    issuer: education-platform
+    secret: education-platform-please-change-this-secret-key-1234567890
+  whitelist:
+    paths:
+      - /auth/login
+      - /auth/refresh
+      - /auth/sms-auth/send
+      - /auth/sms-auth/login
+      - /course/getCourseList
+      - /course/getCourseDetail/**
+      - /
+      - /index.html
+      - /assets/**
+      - /favicon.ico

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xixi.mapper.StudyNoteMapper">
+
+    <!-- 学习笔记结果映射 -->
+    <resultMap id="StudyNoteVoMap" type="com.xixi.pojo.vo.StudyNoteVo">
+        <id column="id" property="id"/>
+        <result column="student_id" property="studentId"/>
+        <result column="course_id" property="courseId"/>
+        <result column="chapter_id" property="chapterId"/>
+        <result column="video_id" property="videoId"/>
+        <result column="note_title" property="noteTitle"/>
+        <result column="note_content" property="noteContent"/>
+        <result column="video_timestamp" property="videoTimestamp"/>
+        <result column="is_public" property="isPublic"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="comment_count" property="commentCount"/>
+        <result column="created_time" property="createdTime"/>
+        <result column="updated_time" property="updatedTime"/>
+    </resultMap>
+
+    <!-- 分页查询学习笔记 -->
+    <select id="selectStudyNotePage" resultMap="StudyNoteVoMap">
+        SELECT
+            sn.id,
+            sn.student_id,
+            sn.course_id,
+            sn.chapter_id,
+            sn.video_id,
+            sn.note_title,
+            sn.note_content,
+            sn.video_timestamp,
+            sn.is_public,
+            sn.like_count,
+            sn.comment_count,
+            sn.created_time,
+            sn.updated_time
+        FROM study_note sn
+        <where>
+            <if test="q.studentId != null">
+                AND sn.student_id = #{q.studentId}
+            </if>
+            <if test="q.courseId != null">
+                AND sn.course_id = #{q.courseId}
+            </if>
+            <if test="q.chapterId != null">
+                AND sn.chapter_id = #{q.chapterId}
+            </if>
+            <if test="q.videoId != null">
+                AND sn.video_id = #{q.videoId}
+            </if>
+            <if test="q.onlyPublic != null and q.onlyPublic == true">
+                AND sn.is_public = 1
+            </if>
+        </where>
+        ORDER BY sn.created_time DESC
+    </select>
+
+    <!-- 增加点赞数 -->
+    <update id="incrementLikeCount">
+        UPDATE study_note
+        SET like_count = like_count + 1
+        WHERE id = #{noteId}
+    </update>
+
+    <!-- 增加评论数 -->
+    <update id="incrementCommentCount">
+        UPDATE study_note
+        SET comment_count = comment_count + 1
+        WHERE id = #{noteId}
+    </update>
+
+    <!-- 查询学生在某课程下的全部笔记 -->
+    <select id="selectByStudentAndCourse" resultType="com.xixi.entity.StudyNote">
+        SELECT
+            id,
+            student_id,
+            course_id,
+            chapter_id,
+            video_id,
+            note_title,
+            note_content,
+            video_timestamp,
+            is_public,
+            like_count,
+            comment_count,
+            created_time,
+            updated_time
+        FROM study_note
+        WHERE student_id = #{studentId}
+          AND course_id = #{courseId}
+        ORDER BY created_time DESC, id DESC
+    </select>
+
+    <!-- 根据学生ID统计笔记总数 -->
+    <select id="selectCountByStudentId" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM study_note
+        WHERE student_id = #{studentId}
+    </select>
+
+</mapper>

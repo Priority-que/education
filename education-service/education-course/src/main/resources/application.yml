@@ -1,0 +1,35 @@
+server:
+  port: 8701
+spring:
+  application:
+    name: education-course
+  # MySQL数据库配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://192.168.108.230:3306/education_course_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  servlet:
+    multipart:
+      max-file-size: 600MB
+      max-request-size: 600MB
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.108.230:8848
+        username: nacos
+        password: nacos
+      config:
+        server-addr: 192.168.108.230:8848
+        username: nacos
+        password: nacos
+    sentinel:
+      transport:
+        dashboard: 192.168.108.230:8858
+      eager: true
+  config:
+    import: nacos:education-common.yml
+
+education:
+  tx:
+    mode: seata
