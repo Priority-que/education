@@ -44,8 +44,8 @@ public class StudentCourseController {
      * @return 结果
      */
     @DeleteMapping("/quit")
-    public Result quitCourse(@RequestParam StudentCourseDto dto) {
-        return studentCourseService.quitCourse(currentStudentResolver.requireCurrentStudentId(), dto.getCourseId());
+    public Result quitCourse(@RequestParam Long courseId) {
+        return studentCourseService.quitCourse(currentStudentResolver.requireCurrentStudentId(), courseId);
     }
     
     /**

@@ -170,6 +170,10 @@ public class StudentCourseServiceImpl implements StudentCourseService {
         // 1. 检查选课记录是否存在
         StudentCourse studentCourse = studentCourseMapper.selectByStudentIdAndCourseId(studentId, courseId);
         if (studentCourse == null) {
+            StudentCourse anyStatusRecord = studentCourseMapper.selectAnyByStudentIdAndCourseId(studentId, courseId);
+            if (anyStatusRecord != null && "DROPPED".equalsIgnoreCase(anyStatusRecord.getLearningStatus())) {
+                return Result.success("当前课程已退出，无需重复操作");
+            }
             throw new BizException("未找到选课记录");
         }
 
@@ -189,6 +193,7 @@ public class StudentCourseServiceImpl implements StudentCourseService {
     @Override
     @SuppressWarnings("unchecked")
     public IPage<StudentCourseVo> getMyCourses(StudentCourseQuery query) {
+        normalizeMyCourseQuery(query);
         // 1. 先查询选课记录（只包含student_course表的数据）
         IPage<StudentCourseVo> page = new Page<>(query.getPageNum(), query.getPageSize());
         IPage<StudentCourseVo> resultPage = studentCourseMapper.selectMyCoursesPage((Page<StudentCourseVo>) page, query);
@@ -295,6 +300,27 @@ public class StudentCourseServiceImpl implements StudentCourseService {
         detailVo.setGradeInfo(convertToCourseDetailGrade(publishedGrade));
         
         return detailVo;
+    }
+
+    private void normalizeMyCourseQuery(StudentCourseQuery query) {
+        if (query == null) {
+            return;
+        }
+        query.setPersistedLearningStatus(null);
+        query.setNotStartedOnly(Boolean.FALSE);
+        if (!org.springframework.util.StringUtils.hasText(query.getLearningStatus())) {
+            return;
+        }
+        String normalizedStatus = query.getLearningStatus().trim().toUpperCase();
+        switch (normalizedStatus) {
+            case "IN_PROGRESS", "STUDYING" -> query.setPersistedLearningStatus("STUDYING");
+            case "NOT_STARTED" -> {
+                query.setPersistedLearningStatus("STUDYING");
+                query.setNotStartedOnly(Boolean.TRUE);
+            }
+            case "COMPLETED", "DROPPED" -> query.setPersistedLearningStatus(normalizedStatus);
+            default -> query.setPersistedLearningStatus(normalizedStatus);
+        }
     }
     
     /**

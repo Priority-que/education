@@ -36,6 +36,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class TalentApplicationSupportService {
+    private static final String CONTACT_STATUS_ACTIVE = "ACTIVE";
     private static final String SOURCE_TYPE_APPLICATION = "APPLICATION";
     private static final String SOURCE_TYPE_MANUAL = "MANUAL";
     private static final String MESSAGE_TYPE_JOB = "JOB";
@@ -257,7 +258,7 @@ public class TalentApplicationSupportService {
             contact.setPhone(phone);
             contact.setEmail(email);
             contact.setPosition(position);
-            contact.setStatus(application.getStatus());
+            contact.setStatus(CONTACT_STATUS_ACTIVE);
             contact.setLatestStatus(application.getStatus());
             contact.setLastContactTime(lastTime);
             contact.setCreatedTime(LocalDateTime.now());
@@ -272,7 +273,6 @@ public class TalentApplicationSupportService {
                 phone,
                 email,
                 position,
-                application.getStatus(),
                 application.getStatus(),
                 lastTime,
                 LocalDateTime.now()

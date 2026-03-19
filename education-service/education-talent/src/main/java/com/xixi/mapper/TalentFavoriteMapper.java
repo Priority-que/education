@@ -71,9 +71,22 @@ public interface TalentFavoriteMapper extends BaseMapper<TalentFavorite> {
     Integer countTotalByEnterprise(@Param("enterpriseId") Long enterpriseId);
 
     /**
+     * 统计企业去重后的当前收藏总数（与收藏列表口径一致）。
+     */
+    Integer countDistinctCurrentByEnterprise(@Param("enterpriseId") Long enterpriseId);
+
+    /**
      * 统计企业某状态收藏总数。
      */
     Integer countByEnterpriseAndStatus(@Param("enterpriseId") Long enterpriseId, @Param("status") String status);
+
+    /**
+     * 统计企业去重后某状态收藏总数（与收藏列表口径一致）。
+     */
+    Integer countDistinctCurrentByEnterpriseAndStatus(
+            @Param("enterpriseId") Long enterpriseId,
+            @Param("status") String status
+    );
 
     /**
      * 按日期统计新增收藏数。

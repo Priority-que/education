@@ -33,6 +33,14 @@ public interface StudentCourseMapper extends BaseMapper<StudentCourse> {
      * @return 选课记录
      */
     StudentCourse selectByStudentIdAndCourseId(@Param("studentId") Long studentId, @Param("courseId") Long courseId);
+
+    /**
+     * 根据学生ID和课程ID查询任意状态选课记录（含已退课）。
+     * @param studentId 学生ID
+     * @param courseId 课程ID
+     * @return 选课记录
+     */
+    StudentCourse selectAnyByStudentIdAndCourseId(@Param("studentId") Long studentId, @Param("courseId") Long courseId);
     
     /**
      * 查询课程学习详情
@@ -81,4 +89,3 @@ public interface StudentCourseMapper extends BaseMapper<StudentCourse> {
     List<TeacherStudentCourseVo> selectTeacherMonitorStudentCourses(@Param("courseId") Long courseId,
                                                                     @Param("studentId") Long studentId);
 }
-

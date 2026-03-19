@@ -30,8 +30,17 @@
             <if test="q.courseId != null">
                 AND sc.course_id = #{q.courseId}
             </if>
-            <if test="q.learningStatus != null and q.learningStatus != ''">
-                AND sc.learning_status = #{q.learningStatus}
+            <if test="q.keyword != null and q.keyword != ''">
+                AND sc.course_name LIKE CONCAT('%', #{q.keyword}, '%')
+            </if>
+            <if test="q.persistedLearningStatus == null or q.persistedLearningStatus == ''">
+                AND (sc.learning_status IS NULL OR sc.learning_status != 'DROPPED')
+            </if>
+            <if test="q.persistedLearningStatus != null and q.persistedLearningStatus != ''">
+                AND sc.learning_status = #{q.persistedLearningStatus}
+            </if>
+            <if test="q.notStartedOnly != null and q.notStartedOnly">
+                AND IFNULL(sc.progress_percentage, 0) = 0
             </if>
         </where>
         ORDER BY
@@ -89,6 +98,31 @@
         WHERE student_id = #{studentId}
           AND course_id = #{courseId}
           AND learning_status != 'DROPPED'
+    </select>
+
+    <select id="selectAnyByStudentIdAndCourseId" resultType="com.xixi.entity.StudentCourse">
+        SELECT
+            id,
+            student_id,
+            course_id,
+            course_name,
+            teacher_id,
+            teacher_name,
+            selected_time,
+            learning_status,
+            progress_percentage,
+            total_study_time,
+            last_study_time,
+            completed_time,
+            rating,
+            review_content,
+            created_time,
+            updated_time
+        FROM student_course
+        WHERE student_id = #{studentId}
+          AND course_id = #{courseId}
+        ORDER BY updated_time DESC, created_time DESC, id DESC
+        LIMIT 1
     </select>
 
     <!-- 查询课程学习详情（只查询student_course表，课程信息通过OpenFeign获取） -->

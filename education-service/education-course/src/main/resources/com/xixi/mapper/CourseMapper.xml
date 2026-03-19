@@ -28,8 +28,13 @@
             c.published_time ,
             c.created_time,
             c.updated_time,
-            cc.category_name
-        FROM course c LEFT JOIN course_category cc ON c.category_id = cc.id
+            cc.category_name,
+            COALESCE(tu.real_name, tu.nickname, tu.username) AS teacher_name
+        FROM course c
+        LEFT JOIN course_category cc ON c.category_id = cc.id
+        LEFT JOIN education_user_db.teachers tt ON c.teacher_id = tt.id
+        LEFT JOIN education_user_db.teachers tu2 ON c.teacher_id = tu2.user_id
+        LEFT JOIN education_user_db.users tu ON tu.id = COALESCE(tt.user_id, tu2.user_id)
         <where>
             <if test="q.courseCode != null and q.courseCode != ''">
                 AND c.course_code = #{q.courseCode}
@@ -43,9 +48,15 @@
             <if test="q.teacherId != null">
                 AND c.teacher_id = #{q.teacherId}
             </if>
+            <if test="q.status != null and q.status != ''">
+                AND c.status = #{q.status}
+            </if>
             <if test="q.keyword != null and q.keyword != ''">
-                AND (c.course_name LIKE CONCAT('%', #{q.keyword}, '%') 
-                     OR c.short_description LIKE CONCAT('%', #{q.keyword}, '%'))
+                AND (
+                    c.course_name LIKE CONCAT('%', #{q.keyword}, '%')
+                    OR c.short_description LIKE CONCAT('%', #{q.keyword}, '%')
+                    OR COALESCE(tu.real_name, tu.nickname, tu.username) LIKE CONCAT('%', #{q.keyword}, '%')
+                )
             </if>
             <if test="q.isFree != null">
                 AND c.is_free = #{q.isFree}
@@ -58,13 +69,13 @@
         <choose>
             <when test="q.sortBy != null and q.sortBy != ''">
                 <choose>
-                    <when test="q.sortBy == 'view_count'">
+                    <when test="q.sortBy == 'view_count' or q.sortBy == 'viewCount'">
                         c.view_count
                     </when>
                     <when test="q.sortBy == 'rating'">
                         c.rating
                     </when>
-                    <when test="q.sortBy == 'published_time'">
+                    <when test="q.sortBy == 'published_time' or q.sortBy == 'publishedTime'">
                         c.published_time
                     </when>
                     <otherwise>

@@ -9,8 +9,10 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xixi.annotation.MethodPurpose;
 import com.xixi.constant.RoleConstants;
+import com.xixi.entity.BlockchainRecord;
 import com.xixi.entity.Certificate;
 import com.xixi.exception.BizException;
+import com.xixi.mapper.BlockchainRecordMapper;
 import com.xixi.mapper.CertificateMapper;
 import com.xixi.mq.CertificateChangedEventProducer;
 import com.xixi.openfeign.message.EducationMessageInternalClient;
@@ -19,6 +21,7 @@ import com.xixi.openfeign.user.EducationUserStudentClient;
 import com.xixi.pojo.dto.certificate.CertificateIssueDto;
 import com.xixi.pojo.dto.certificate.CertificateRevokeDto;
 import com.xixi.pojo.query.certificate.CertificateTeacherIssuedQuery;
+import com.xixi.pojo.vo.certificate.CertificateDetailVo;
 import com.xixi.pojo.vo.certificate.CertificateTeacherIssuedVo;
 import com.xixi.service.TeacherCertificateService;
 import com.xixi.web.Result;
@@ -53,6 +56,7 @@ public class TeacherCertificateServiceImpl implements TeacherCertificateService 
     private static final DateTimeFormatter NUMBER_DATE = DateTimeFormatter.ofPattern("yyyyMM");
 
     private final CertificateMapper certificateMapper;
+    private final BlockchainRecordMapper blockchainRecordMapper;
     private final CertificateChangedEventProducer certificateChangedEventProducer;
     private final EducationMessageInternalClient educationMessageInternalClient;
     private final EducationUserStudentClient educationUserStudentClient;
@@ -171,12 +175,35 @@ public class TeacherCertificateServiceImpl implements TeacherCertificateService 
         return voPage;
     }
 
+    @Override
+    @MethodPurpose("8.3-扩展：教师查看自己已颁发证书详情")
+    public CertificateDetailVo getTeacherIssuedDetail(Long certificateId, Long teacherId) {
+        Long validTeacherId = requireTeacherId(teacherId);
+        Certificate certificate = requireTeacherOwnedCertificate(certificateId, validTeacherId);
+        return toDetailVo(certificate);
+    }
+
     @MethodPurpose("校验并返回当前教师ID")
     private Long requireTeacherId(Long teacherId) {
         if (teacherId == null) {
             throw new BizException(401, "未登录或用户ID缺失");
         }
         return teacherId;
+    }
+
+    @MethodPurpose("按证书ID查询并校验教师归属")
+    private Certificate requireTeacherOwnedCertificate(Long certificateId, Long teacherId) {
+        if (certificateId == null) {
+            throw new BizException(400, "证书ID不能为空");
+        }
+        Certificate certificate = certificateMapper.selectById(certificateId);
+        if (certificate == null) {
+            throw new BizException(404, "证书不存在");
+        }
+        if (!Objects.equals(certificate.getTeacherId(), teacherId)) {
+            throw new BizException(403, "无权限查看他人证书");
+        }
+        return certificate;
     }
 
     @MethodPurpose("校验颁发证书请求参数")
@@ -212,6 +239,16 @@ public class TeacherCertificateServiceImpl implements TeacherCertificateService 
             }
         }
         throw new BizException(500, "证书编号生成失败，请重试");
+    }
+
+    @MethodPurpose("将证书实体转换为详情视图对象并补全区块链记录")
+    private CertificateDetailVo toDetailVo(Certificate certificate) {
+        CertificateDetailVo detailVo = BeanUtil.copyProperties(certificate, CertificateDetailVo.class);
+        if (certificate.getBlockHeight() != null) {
+            BlockchainRecord blockchainRecord = blockchainRecordMapper.selectByBlockHeight(certificate.getBlockHeight());
+            detailVo.setBlockchainRecord(blockchainRecord);
+        }
+        return detailVo;
     }
 
     @MethodPurpose("查询最近一条证书哈希作为前置哈希")

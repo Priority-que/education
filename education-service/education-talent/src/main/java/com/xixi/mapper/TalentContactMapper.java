@@ -26,6 +26,11 @@ public interface TalentContactMapper extends BaseMapper<TalentContact> {
             @Param("sourceType") String sourceType
     );
 
+    /**
+     * 统计企业联系人总数。
+     */
+    Integer countTotalByEnterprise(@Param("enterpriseId") Long enterpriseId);
+
     TalentContact selectByEnterpriseAndId(@Param("enterpriseId") Long enterpriseId, @Param("id") Long id);
 
     int deleteByEnterpriseAndId(@Param("enterpriseId") Long enterpriseId, @Param("id") Long id);
@@ -42,7 +47,6 @@ public interface TalentContactMapper extends BaseMapper<TalentContact> {
             @Param("phone") String phone,
             @Param("email") String email,
             @Param("position") String position,
-            @Param("status") String status,
             @Param("latestStatus") String latestStatus,
             @Param("lastContactTime") LocalDateTime lastContactTime,
             @Param("updatedTime") LocalDateTime updatedTime

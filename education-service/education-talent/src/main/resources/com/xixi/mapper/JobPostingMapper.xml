@@ -83,7 +83,43 @@
             AND jp.job_type = #{jobType}
         </if>
         <if test="educationRequirement != null and educationRequirement != ''">
-            AND jp.education_requirement = #{educationRequirement}
+            <choose>
+                <when test="educationRequirement == 'HIGH_SCHOOL'">
+                    AND (
+                        jp.education_requirement = 'HIGH_SCHOOL'
+                        OR jp.education_requirement LIKE '%高中%'
+                    )
+                </when>
+                <when test="educationRequirement == 'ASSOCIATE'">
+                    AND (
+                        jp.education_requirement = 'ASSOCIATE'
+                        OR jp.education_requirement = 'COLLEGE'
+                        OR jp.education_requirement LIKE '%大专%'
+                    )
+                </when>
+                <when test="educationRequirement == 'BACHELOR'">
+                    AND (
+                        jp.education_requirement = 'BACHELOR'
+                        OR jp.education_requirement LIKE '%本科%'
+                    )
+                </when>
+                <when test="educationRequirement == 'MASTER'">
+                    AND (
+                        jp.education_requirement = 'MASTER'
+                        OR jp.education_requirement LIKE '%硕士%'
+                    )
+                </when>
+                <when test="educationRequirement == 'DOCTOR'">
+                    AND (
+                        jp.education_requirement = 'DOCTOR'
+                        OR jp.education_requirement = 'PHD'
+                        OR jp.education_requirement LIKE '%博士%'
+                    )
+                </when>
+                <otherwise>
+                    AND jp.education_requirement LIKE CONCAT('%', #{educationRequirement}, '%')
+                </otherwise>
+            </choose>
         </if>
         <if test="city != null and city != ''">
             AND (

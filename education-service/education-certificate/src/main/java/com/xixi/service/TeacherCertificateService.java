@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.xixi.pojo.dto.certificate.CertificateIssueDto;
 import com.xixi.pojo.dto.certificate.CertificateRevokeDto;
 import com.xixi.pojo.query.certificate.CertificateTeacherIssuedQuery;
+import com.xixi.pojo.vo.certificate.CertificateDetailVo;
 import com.xixi.pojo.vo.certificate.CertificateTeacherIssuedVo;
 import com.xixi.web.Result;
 
@@ -16,4 +17,6 @@ public interface TeacherCertificateService {
     Result revokeCertificate(Long certificateId, CertificateRevokeDto dto, Long teacherId);
 
     IPage<CertificateTeacherIssuedVo> getTeacherIssuedPage(CertificateTeacherIssuedQuery query, Long teacherId);
+
+    CertificateDetailVo getTeacherIssuedDetail(Long certificateId, Long teacherId);
 }

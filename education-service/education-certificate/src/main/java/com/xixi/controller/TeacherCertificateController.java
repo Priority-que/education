@@ -8,6 +8,7 @@ import com.xixi.constant.RoleConstants;
 import com.xixi.pojo.dto.certificate.CertificateIssueDto;
 import com.xixi.pojo.dto.certificate.CertificateRevokeDto;
 import com.xixi.pojo.query.certificate.CertificateTeacherIssuedQuery;
+import com.xixi.pojo.vo.certificate.CertificateDetailVo;
 import com.xixi.pojo.vo.certificate.CertificateTeacherIssuedVo;
 import com.xixi.service.TeacherCertificateService;
 import com.xixi.support.TeacherIdentityResolver;
@@ -63,6 +64,17 @@ public class TeacherCertificateController {
         Long teacherId = teacherIdentityResolver.resolveTeacherIdByUserId(parseUserId(userIdHeader));
         IPage<CertificateTeacherIssuedVo> page = teacherCertificateService.getTeacherIssuedPage(query, teacherId);
         return Result.success(page);
+    }
+
+    @MethodPurpose("8.3-扩展：教师查看自己已颁发证书详情")
+    @GetMapping("/issued/detail/{certificateId}")
+    public Result getTeacherIssuedDetail(
+            @PathVariable Long certificateId,
+            @RequestHeader(value = AuthHeaderConstants.HEADER_USER_ID, required = false) String userIdHeader
+    ) {
+        Long teacherId = teacherIdentityResolver.resolveTeacherIdByUserId(parseUserId(userIdHeader));
+        CertificateDetailVo detailVo = teacherCertificateService.getTeacherIssuedDetail(certificateId, teacherId);
+        return Result.success(detailVo);
     }
 
     @MethodPurpose("解析请求头中的用户ID")

@@ -88,7 +88,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
         log.warn("请求体解析失败: {}", e.getMessage());
-        return Result.error(400, "请求体格式错误，请检查 JSON 格式");
+        return Result.error(400, "提交内容格式有误，请检查填写内容后重试");
     }
 
     /**

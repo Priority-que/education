@@ -60,6 +60,11 @@ public class CourseQuery {
     private String sortOrder;
 
     /**
+     * 课程状态（如 PUBLISHED / DRAFT）
+     */
+    private String status;
+
+    /**
      * 教师ID（用于教师端按归属教师过滤）
      */
     private Long teacherId;

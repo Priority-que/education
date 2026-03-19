@@ -101,11 +101,47 @@
         WHERE enterprise_id = #{enterpriseId}
     </select>
 
+    <select id="countDistinctCurrentByEnterprise" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM (
+            SELECT
+                ROW_NUMBER() OVER (
+                    PARTITION BY CONCAT(
+                        CASE WHEN tf.student_id IS NULL THEN 'R:' ELSE 'S:' END,
+                        CAST(COALESCE(tf.student_id, tf.resume_id) AS CHAR)
+                    )
+                    ORDER BY tf.updated_time DESC, tf.created_time DESC, tf.id DESC
+                ) AS rn
+            FROM talent_favorite tf
+            WHERE tf.enterprise_id = #{enterpriseId}
+        ) ranked
+        WHERE ranked.rn = 1
+    </select>
+
     <select id="countByEnterpriseAndStatus" resultType="java.lang.Integer">
         SELECT COUNT(1)
         FROM talent_favorite
         WHERE enterprise_id = #{enterpriseId}
           AND status = #{status}
+    </select>
+
+    <select id="countDistinctCurrentByEnterpriseAndStatus" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM (
+            SELECT
+                tf.status,
+                ROW_NUMBER() OVER (
+                    PARTITION BY CONCAT(
+                        CASE WHEN tf.student_id IS NULL THEN 'R:' ELSE 'S:' END,
+                        CAST(COALESCE(tf.student_id, tf.resume_id) AS CHAR)
+                    )
+                    ORDER BY tf.updated_time DESC, tf.created_time DESC, tf.id DESC
+                ) AS rn
+            FROM talent_favorite tf
+            WHERE tf.enterprise_id = #{enterpriseId}
+        ) ranked
+        WHERE ranked.rn = 1
+          AND ranked.status = #{status}
     </select>
 
     <select id="countCreatedByEnterpriseAndDate" resultType="java.lang.Integer">

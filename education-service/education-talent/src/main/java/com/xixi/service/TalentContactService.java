@@ -26,6 +26,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TalentContactService {
     private static final String SOURCE_TYPE_MANUAL = "MANUAL";
+    private static final String CONTACT_STATUS_ACTIVE = "ACTIVE";
+    private static final String CONTACT_STATUS_INACTIVE = "INACTIVE";
 
     private final EnterpriseIdentityService enterpriseIdentityService;
     private final TalentContactMapper talentContactMapper;
@@ -52,15 +54,15 @@ public class TalentContactService {
     @MethodPurpose("创建联系人")
     @Transactional(rollbackFor = Exception.class)
     public Long create(TalentContactCreateDto dto, Long userId) {
-        if (dto == null || dto.getStudentId() == null || !StringUtils.hasText(dto.getName())) {
-            throw new BizException(400, "studentId和name不能为空");
+        if (dto == null || !StringUtils.hasText(dto.getName())) {
+            throw new BizException(400, "联系人姓名不能为空");
         }
         Long enterpriseId = enterpriseIdentityService.requireEnterpriseId(userId);
         TalentContact contact = BeanUtil.copyProperties(dto, TalentContact.class);
         contact.setEnterpriseId(enterpriseId);
         contact.setSourceType(StringUtils.hasText(dto.getSourceType()) ? dto.getSourceType().trim() : SOURCE_TYPE_MANUAL);
         contact.setName(dto.getName().trim());
-        contact.setStatus(trimToNull(dto.getStatus()));
+        contact.setStatus(normalizeContactStatus(dto.getStatus(), CONTACT_STATUS_ACTIVE));
         contact.setLatestStatus(trimToNull(dto.getLatestStatus()));
         contact.setLastContactTime(dto.getLastContactTime() == null ? LocalDateTime.now() : dto.getLastContactTime());
         contact.setCreatedTime(LocalDateTime.now());
@@ -106,7 +108,7 @@ public class TalentContactService {
             existed.setPosition(trimToNull(dto.getPosition()));
         }
         if (dto.getStatus() != null) {
-            existed.setStatus(trimToNull(dto.getStatus()));
+            existed.setStatus(normalizeContactStatus(dto.getStatus(), existed.getStatus()));
         }
         if (dto.getLatestStatus() != null) {
             existed.setLatestStatus(trimToNull(dto.getLatestStatus()));
@@ -157,7 +159,7 @@ public class TalentContactService {
         vo.setEmail(toString(row.get("email")));
         vo.setWechat(toString(row.get("wechat")));
         vo.setPosition(toString(row.get("position")));
-        vo.setStatus(toString(row.get("status")));
+        vo.setStatus(normalizeContactStatus(toString(row.get("status")), CONTACT_STATUS_ACTIVE));
         vo.setLatestStatus(toString(row.get("latestStatus")));
         vo.setLatestCommunicationTime(toDateTime(row.get("latestCommunicationTime")));
         vo.setRemark(toString(row.get("remark")));
@@ -182,6 +184,23 @@ public class TalentContactService {
             return null;
         }
         return value.trim();
+    }
+
+    private String normalizeContactStatus(String status, String fallback) {
+        if (!StringUtils.hasText(status)) {
+            return StringUtils.hasText(fallback) ? fallback : CONTACT_STATUS_ACTIVE;
+        }
+        String normalized = status.trim().toUpperCase();
+        if (CONTACT_STATUS_ACTIVE.equals(normalized) || CONTACT_STATUS_INACTIVE.equals(normalized)) {
+            return normalized;
+        }
+        if ("有效".equals(status.trim())) {
+            return CONTACT_STATUS_ACTIVE;
+        }
+        if ("无效".equals(status.trim())) {
+            return CONTACT_STATUS_INACTIVE;
+        }
+        return StringUtils.hasText(fallback) ? fallback : CONTACT_STATUS_ACTIVE;
     }
 
     private String toString(Object value) {

@@ -7,6 +7,7 @@ import com.xixi.exception.BizException;
 import com.xixi.mapper.CommunicationRecordMapper;
 import com.xixi.mapper.EnterpriseTalentStatisticsMapper;
 import com.xixi.mapper.SearchHistoryMapper;
+import com.xixi.mapper.TalentContactMapper;
 import com.xixi.mapper.TalentFavoriteMapper;
 import com.xixi.mq.TalentDomainEventProducer;
 import com.xixi.openfeign.certificate.EducationCertificateVerifyClient;
@@ -44,6 +45,7 @@ public class TalentCertificateDashboardService {
     private final EnterpriseTalentStatisticsMapper enterpriseTalentStatisticsMapper;
     private final TalentFavoriteMapper talentFavoriteMapper;
     private final CommunicationRecordMapper communicationRecordMapper;
+    private final TalentContactMapper talentContactMapper;
     private final SearchHistoryMapper searchHistoryMapper;
     private final TalentDomainEventProducer talentDomainEventProducer;
 
@@ -111,25 +113,14 @@ public class TalentCertificateDashboardService {
     @MethodPurpose("查询企业看板总览数据")
     public TalentDashboardOverviewVo getDashboardOverview(Long userId, Integer role, Long enterpriseIdParam) {
         Long enterpriseId = resolveDashboardEnterpriseId(userId, role, enterpriseIdParam);
-        EnterpriseTalentStatistics latest = enterpriseTalentStatisticsMapper.selectLatestByEnterpriseId(enterpriseId);
 
         TalentDashboardOverviewVo vo = new TalentDashboardOverviewVo();
         vo.setEnterpriseId(enterpriseId);
-        if (latest != null) {
-            vo.setStatDate(latest.getStatDate());
-            vo.setTotalFavorites(nullToZero(latest.getTotalFavorites()));
-            vo.setTotalContacts(nullToZero(latest.getTotalContacts()));
-            vo.setTotalInterviews(nullToZero(latest.getTotalInterviews()));
-            vo.setTotalHires(nullToZero(latest.getTotalHires()));
-            vo.setTotalSearches(nullToZero(latest.getTotalSearches()));
-            return vo;
-        }
-
         vo.setStatDate(LocalDate.now());
-        vo.setTotalFavorites(nullToZero(talentFavoriteMapper.countTotalByEnterprise(enterpriseId)));
-        vo.setTotalContacts(nullToZero(communicationRecordMapper.countTotalByEnterprise(enterpriseId)));
-        vo.setTotalInterviews(nullToZero(talentFavoriteMapper.countByEnterpriseAndStatus(enterpriseId, "INTERVIEWED")));
-        vo.setTotalHires(nullToZero(talentFavoriteMapper.countByEnterpriseAndStatus(enterpriseId, "HIRED")));
+        vo.setTotalFavorites(nullToZero(talentFavoriteMapper.countDistinctCurrentByEnterprise(enterpriseId)));
+        vo.setTotalContacts(nullToZero(talentContactMapper.countTotalByEnterprise(enterpriseId)));
+        vo.setTotalInterviews(nullToZero(talentFavoriteMapper.countDistinctCurrentByEnterpriseAndStatus(enterpriseId, "INTERVIEWED")));
+        vo.setTotalHires(nullToZero(talentFavoriteMapper.countDistinctCurrentByEnterpriseAndStatus(enterpriseId, "HIRED")));
         vo.setTotalSearches(nullToZero(searchHistoryMapper.countTotalByEnterprise(enterpriseId)));
         return vo;
     }

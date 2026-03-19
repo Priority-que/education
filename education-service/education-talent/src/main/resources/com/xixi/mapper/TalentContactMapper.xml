@@ -17,7 +17,10 @@
             tc.email AS email,
             tc.wechat AS wechat,
             tc.position AS position,
-            tc.status AS status,
+            CASE
+                WHEN UPPER(IFNULL(tc.status, '')) = 'INACTIVE' THEN 'INACTIVE'
+                ELSE 'ACTIVE'
+            END AS status,
             tc.latest_status AS latestStatus,
             tc.last_contact_time AS latestCommunicationTime,
             tc.remark AS remark,
@@ -39,7 +42,14 @@
             AND tc.source_type = #{sourceType}
         </if>
         <if test="status != null and status != ''">
-            AND tc.status = #{status}
+            <choose>
+                <when test="status == 'INACTIVE'">
+                    AND UPPER(IFNULL(tc.status, '')) = 'INACTIVE'
+                </when>
+                <otherwise>
+                    AND UPPER(IFNULL(tc.status, 'ACTIVE')) != 'INACTIVE'
+                </otherwise>
+            </choose>
         </if>
         <if test="keyword != null and keyword != ''">
             AND (
@@ -70,6 +80,12 @@
         LIMIT 1
     </select>
 
+    <select id="countTotalByEnterprise" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM talent_contact
+        WHERE enterprise_id = #{enterpriseId}
+    </select>
+
     <delete id="deleteByEnterpriseAndId">
         DELETE FROM talent_contact
         WHERE enterprise_id = #{enterpriseId}
@@ -83,7 +99,6 @@
             phone = #{phone},
             email = #{email},
             position = #{position},
-            status = #{status},
             latest_status = #{latestStatus},
             last_contact_time = #{lastContactTime},
             updated_time = #{updatedTime}

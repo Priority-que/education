@@ -14,5 +14,5 @@ public class CertificateAnchorResultVo {
     private String previousHash;
     private String currentHash;
     private Boolean alreadyAnchored;
+    private Boolean recovered;
 }
-

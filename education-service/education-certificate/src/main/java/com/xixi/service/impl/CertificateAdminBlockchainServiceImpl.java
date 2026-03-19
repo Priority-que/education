@@ -21,6 +21,7 @@ import com.xixi.pojo.vo.certificate.CertificateBatchAnchorResultVo;
 import com.xixi.service.CertificateAdminBlockchainService;
 import com.xixi.web.Result;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ import java.util.List;
 /**
  * 管理端证书上链服务实现（假链模拟）。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CertificateAdminBlockchainServiceImpl implements CertificateAdminBlockchainService {
@@ -92,14 +94,29 @@ public class CertificateAdminBlockchainServiceImpl implements CertificateAdminBl
 
         Certificate certificate = certificateMapper.selectById(certificateId);
         if (certificate == null) {
+            log.warn("certificate anchor rejected: certificate not found, certificateId={}, operatorId={}", certificateId, operatorId);
             throw new BizException(404, "证书不存在");
         }
         if (!STATUS_ISSUED.equalsIgnoreCase(certificate.getStatus())) {
+            log.warn("certificate anchor rejected: invalid status, certificateId={}, status={}, operatorId={}",
+                    certificateId, certificate.getStatus(), operatorId);
             throw new BizException(409, "仅ISSUED状态证书允许上链");
         }
 
+        log.info("certificate anchor requested, certificateId={}, certificateNumber={}, blockHeight={}, transactionHashPresent={}, operatorId={}",
+                certificate.getId(), certificate.getCertificateNumber(), certificate.getBlockHeight(),
+                StringUtils.hasText(certificate.getTransactionHash()), operatorId);
+        ensureCertificateHash(certificate);
         CertificateAnchorResultVo anchored = queryAnchoredResult(certificateId);
         if (anchored != null && Boolean.TRUE.equals(anchored.getAlreadyAnchored())) {
+            BlockchainRecord existingRecord = findExistingBlockRecord(certificate);
+            boolean recovered = false;
+            if (existingRecord != null) {
+                recovered = recoverCertificateAnchorFields(certificate, existingRecord);
+                log.info("certificate anchor recovered from existing block record, certificateId={}, blockHeight={}, operatorId={}",
+                        certificate.getId(), existingRecord.getBlockHeight(), operatorId);
+                return Result.success("证书已上链", toAnchorResult(certificate, existingRecord, true, recovered));
+            }
             return Result.success("证书已上链", anchored);
         }
 
@@ -110,6 +127,8 @@ public class CertificateAdminBlockchainServiceImpl implements CertificateAdminBl
         certificate.setPreviousHash(createdRecord.getPreviousHash());
         certificate.setUpdatedTime(LocalDateTime.now());
         certificateMapper.updateById(certificate);
+        log.info("certificate anchor created new block record, certificateId={}, blockHeight={}, operatorId={}",
+                certificate.getId(), createdRecord.getBlockHeight(), operatorId);
 
         certificateBlockchainAnchoredEventProducer.publish(
                 certificate.getId(),
@@ -120,7 +139,7 @@ public class CertificateAdminBlockchainServiceImpl implements CertificateAdminBl
                 operatorId
         );
 
-        CertificateAnchorResultVo resultVo = toAnchorResult(certificate, createdRecord, false);
+        CertificateAnchorResultVo resultVo = toAnchorResult(certificate, createdRecord, false, false);
         return Result.success("证书上链成功", resultVo);
     }
 
@@ -189,14 +208,11 @@ public class CertificateAdminBlockchainServiceImpl implements CertificateAdminBl
         if (certificate == null) {
             return null;
         }
-        if (certificate.getBlockHeight() == null || !StringUtils.hasText(certificate.getTransactionHash())) {
-            return null;
-        }
-        BlockchainRecord record = blockchainRecordMapper.selectByBlockHeight(certificate.getBlockHeight());
+        BlockchainRecord record = findExistingBlockRecord(certificate);
         if (record == null) {
             return null;
         }
-        return toAnchorResult(certificate, record, true);
+        return toAnchorResult(certificate, record, true, false);
     }
 
     @MethodPurpose("尝试写入区块记录，处理并发时高度冲突")
@@ -207,7 +223,7 @@ public class CertificateAdminBlockchainServiceImpl implements CertificateAdminBl
             String previousHash = latestRecord == null ? GENESIS_PREVIOUS_HASH : latestRecord.getCurrentHash();
             long timestamp = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC);
             long nonce = RandomUtil.randomLong(100000L, Long.MAX_VALUE);
-            String certificateHash = certificate.getHash();
+            String certificateHash = ensureCertificateHash(certificate);
             String merkleRoot = DigestUtil.sha256Hex(certificateHash);
             String payload = newHeight + "|" + previousHash + "|" + certificateHash + "|" + timestamp + "|" + nonce;
             String currentHash = DigestUtil.sha256Hex(payload);
@@ -227,9 +243,10 @@ public class CertificateAdminBlockchainServiceImpl implements CertificateAdminBl
                 blockchainRecordMapper.insert(record);
                 return record;
             } catch (DuplicateKeyException duplicateKeyException) {
-                // 并发高度冲突时重试生成新区块高度
+                log.warn("certificate anchor block height conflict, certificateId={}, retry={}", certificate.getId(), retry + 1);
             }
         }
+        log.error("certificate anchor failed after retries, certificateId={}, certificateHash={}", certificate.getId(), certificate.getHash());
         throw new BizException(500, "证书上链失败，请稍后重试");
     }
 
@@ -243,16 +260,88 @@ public class CertificateAdminBlockchainServiceImpl implements CertificateAdminBl
         return DigestUtil.sha256Hex("tx|" + certificateId + "|" + blockRecordId + "|" + timestamp + "|" + RandomUtil.randomString(8));
     }
 
+    @MethodPurpose("恢复路径构建稳定交易哈希，避免已有区块记录场景重复失败")
+    private String buildRecoveredTransactionHash(Long certificateId, Long blockRecordId, Long timestamp) {
+        return DigestUtil.sha256Hex("tx|recovered|" + certificateId + "|" + blockRecordId + "|" + timestamp);
+    }
+
+    @MethodPurpose("根据证书主表字段或证书哈希查找已存在区块记录")
+    private BlockchainRecord findExistingBlockRecord(Certificate certificate) {
+        if (certificate == null) {
+            return null;
+        }
+        if (certificate.getBlockHeight() != null) {
+            BlockchainRecord byHeight = blockchainRecordMapper.selectByBlockHeight(certificate.getBlockHeight());
+            if (byHeight != null) {
+                return byHeight;
+            }
+        }
+        if (StringUtils.hasText(certificate.getHash())) {
+            return blockchainRecordMapper.selectByCertificateHash(certificate.getHash());
+        }
+        return null;
+    }
+
+    @MethodPurpose("补全证书上链字段，处理链记录已存在但证书未回填的异常中间态")
+    private boolean recoverCertificateAnchorFields(Certificate certificate, BlockchainRecord record) {
+        if (certificate == null || record == null) {
+            return false;
+        }
+        boolean changed = false;
+        if (certificate.getBlockHeight() == null || !certificate.getBlockHeight().equals(record.getBlockHeight())) {
+            certificate.setBlockHeight(record.getBlockHeight());
+            changed = true;
+        }
+        if (!StringUtils.hasText(certificate.getPreviousHash())) {
+            certificate.setPreviousHash(record.getPreviousHash());
+            changed = true;
+        }
+        if (!StringUtils.hasText(certificate.getTransactionHash())) {
+            certificate.setTransactionHash(buildRecoveredTransactionHash(certificate.getId(), record.getId(), record.getTimestamp()));
+            changed = true;
+        }
+        if (changed) {
+            certificate.setUpdatedTime(LocalDateTime.now());
+            certificateMapper.updateById(certificate);
+            log.info("certificate anchor fields repaired, certificateId={}, blockHeight={}", certificate.getId(), record.getBlockHeight());
+        }
+        return changed;
+    }
+
+    @MethodPurpose("保证证书哈希存在，避免历史脏数据导致上链失败")
+    private String ensureCertificateHash(Certificate certificate) {
+        if (certificate == null) {
+            throw new BizException(500, "证书数据异常");
+        }
+        if (StringUtils.hasText(certificate.getHash())) {
+            return certificate.getHash();
+        }
+        String payload = String.valueOf(certificate.getCertificateNumber()) + "|"
+                + String.valueOf(certificate.getStudentId()) + "|"
+                + String.valueOf(certificate.getCourseId()) + "|"
+                + String.valueOf(certificate.getTeacherId()) + "|"
+                + String.valueOf(certificate.getCreatedTime());
+        String generatedHash = DigestUtil.sha256Hex(payload);
+        certificate.setHash(generatedHash);
+        certificate.setUpdatedTime(LocalDateTime.now());
+        certificateMapper.updateById(certificate);
+        log.info("certificate hash generated for anchor recovery, certificateId={}", certificate.getId());
+        return generatedHash;
+    }
+
     @MethodPurpose("组装上链结果对象")
-    private CertificateAnchorResultVo toAnchorResult(Certificate certificate, BlockchainRecord record, boolean alreadyAnchored) {
+    private CertificateAnchorResultVo toAnchorResult(Certificate certificate, BlockchainRecord record, boolean alreadyAnchored, boolean recovered) {
         CertificateAnchorResultVo vo = new CertificateAnchorResultVo();
         vo.setCertificateId(certificate.getId());
         vo.setCertificateNumber(certificate.getCertificateNumber());
         vo.setBlockHeight(record.getBlockHeight());
-        vo.setTransactionHash(certificate.getTransactionHash());
+        vo.setTransactionHash(StringUtils.hasText(certificate.getTransactionHash())
+                ? certificate.getTransactionHash()
+                : buildRecoveredTransactionHash(certificate.getId(), record.getId(), record.getTimestamp()));
         vo.setPreviousHash(record.getPreviousHash());
         vo.setCurrentHash(record.getCurrentHash());
         vo.setAlreadyAnchored(alreadyAnchored);
+        vo.setRecovered(recovered);
         return vo;
     }
 
@@ -304,13 +393,18 @@ public class CertificateAdminBlockchainServiceImpl implements CertificateAdminBl
 
     @MethodPurpose("转换管理端证书上链分页视图")
     private CertificateAdminBlockchainPageVo toPageVo(Certificate certificate) {
+        BlockchainRecord record = findExistingBlockRecord(certificate);
         CertificateAdminBlockchainPageVo vo = new CertificateAdminBlockchainPageVo();
         vo.setCertificateId(certificate.getId());
         vo.setCertificateNumber(certificate.getCertificateNumber());
         vo.setStatus(certificate.getStatus());
-        vo.setBlockHeight(certificate.getBlockHeight());
-        vo.setTransactionHash(certificate.getTransactionHash());
-        vo.setAnchored(certificate.getBlockHeight() != null && StringUtils.hasText(certificate.getTransactionHash()));
+        vo.setBlockHeight(record != null ? record.getBlockHeight() : certificate.getBlockHeight());
+        vo.setTransactionHash(record != null
+                ? (StringUtils.hasText(certificate.getTransactionHash())
+                ? certificate.getTransactionHash()
+                : buildRecoveredTransactionHash(certificate.getId(), record.getId(), record.getTimestamp()))
+                : certificate.getTransactionHash());
+        vo.setAnchored(record != null || (certificate.getBlockHeight() != null && StringUtils.hasText(certificate.getTransactionHash())));
         return vo;
     }
 }

@@ -22,6 +22,7 @@ import com.xixi.service.AdminBlockchainService;
 import com.xixi.service.support.AdminOperationLogger;
 import com.xixi.web.Result;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -34,6 +35,7 @@ import java.time.LocalDateTime;
 /**
  * 区块链管理编排服务实现。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminBlockchainServiceImpl implements AdminBlockchainService {
@@ -96,35 +98,60 @@ public class AdminBlockchainServiceImpl implements AdminBlockchainService {
         if (certificateId == null) {
             throw new BizException(400, "certificateId不能为空");
         }
-        Result result = educationCertificateAdminClient.anchorCertificate(certificateId, String.valueOf(validAdminId), "1");
-        boolean success = result != null && result.getCode() != null && result.getCode() == 200;
-        adminOperationLogger.log(
-                validAdminId,
-                "管理员" + validAdminId,
-                "ADMIN",
-                "BLOCKCHAIN_ANCHOR",
-                "触发单证书上链",
-                "POST",
-                "/admin/blockchain/certificate/anchor/" + certificateId,
-                null,
-                JSONUtil.toJsonStr(result),
-                null,
-                null,
-                0,
-                success,
-                success ? null : (result == null ? "证书服务返回为空" : result.getMessage())
-        );
-        if (!success) {
-            throw new BizException(result == null ? 500 : result.getCode(), result == null ? "证书服务返回为空" : result.getMessage());
+        try {
+            Result result = educationCertificateAdminClient.anchorCertificate(certificateId, String.valueOf(validAdminId), "1");
+            boolean success = result != null && result.getCode() != null && result.getCode() == 200;
+            adminOperationLogger.log(
+                    validAdminId,
+                    "管理员" + validAdminId,
+                    "ADMIN",
+                    "BLOCKCHAIN_ANCHOR",
+                    "触发单证书上链",
+                    "POST",
+                    "/admin/blockchain/certificate/anchor/" + certificateId,
+                    null,
+                    JSONUtil.toJsonStr(result),
+                    null,
+                    null,
+                    0,
+                    success,
+                    success ? null : (result == null ? "证书服务返回为空" : result.getMessage())
+            );
+            if (!success) {
+                throw new BizException(result == null ? 500 : result.getCode(), result == null ? "证书服务返回为空" : result.getMessage());
+            }
+            adminDomainEventProducer.publish(
+                    "ANCHOR",
+                    BIZ_TYPE_BLOCKCHAIN,
+                    certificateId,
+                    JSONUtil.toJsonStr(result.getData()),
+                    validAdminId
+            );
+            return Result.success("上链触发成功", result.getData());
+        } catch (Exception e) {
+            String errorMessage = e instanceof BizException bizException ? bizException.getMessage() : e.getMessage();
+            adminOperationLogger.log(
+                    validAdminId,
+                    "管理员" + validAdminId,
+                    "ADMIN",
+                    "BLOCKCHAIN_ANCHOR",
+                    "触发单证书上链",
+                    "POST",
+                    "/admin/blockchain/certificate/anchor/" + certificateId,
+                    null,
+                    null,
+                    null,
+                    null,
+                    0,
+                    false,
+                    errorMessage
+            );
+            log.error("admin blockchain anchor failed, certificateId={}, adminId={}", certificateId, validAdminId, e);
+            if (e instanceof BizException bizException) {
+                throw bizException;
+            }
+            throw new BizException(500, "证书上链失败：" + (errorMessage == null ? "远端服务异常" : errorMessage));
         }
-        adminDomainEventProducer.publish(
-                "ANCHOR",
-                BIZ_TYPE_BLOCKCHAIN,
-                certificateId,
-                JSONUtil.toJsonStr(result.getData()),
-                validAdminId
-        );
-        return Result.success("上链触发成功", result.getData());
     }
 
     @Override
@@ -135,35 +162,60 @@ public class AdminBlockchainServiceImpl implements AdminBlockchainService {
         if (dto == null || dto.getCertificateIds() == null || dto.getCertificateIds().isEmpty()) {
             throw new BizException(400, "certificateIds不能为空");
         }
-        Result result = educationCertificateAdminClient.anchorBatchCertificates(dto, String.valueOf(validAdminId), "1");
-        boolean success = result != null && result.getCode() != null && result.getCode() == 200;
-        adminOperationLogger.log(
-                validAdminId,
-                "管理员" + validAdminId,
-                "ADMIN",
-                "BLOCKCHAIN_ANCHOR_BATCH",
-                "触发批量证书上链",
-                "POST",
-                "/admin/blockchain/certificate/anchor/batch",
-                JSONUtil.toJsonStr(dto),
-                JSONUtil.toJsonStr(result),
-                null,
-                null,
-                0,
-                success,
-                success ? null : (result == null ? "证书服务返回为空" : result.getMessage())
-        );
-        if (!success) {
-            throw new BizException(result == null ? 500 : result.getCode(), result == null ? "证书服务返回为空" : result.getMessage());
+        try {
+            Result result = educationCertificateAdminClient.anchorBatchCertificates(dto, String.valueOf(validAdminId), "1");
+            boolean success = result != null && result.getCode() != null && result.getCode() == 200;
+            adminOperationLogger.log(
+                    validAdminId,
+                    "管理员" + validAdminId,
+                    "ADMIN",
+                    "BLOCKCHAIN_ANCHOR_BATCH",
+                    "触发批量证书上链",
+                    "POST",
+                    "/admin/blockchain/certificate/anchor/batch",
+                    JSONUtil.toJsonStr(dto),
+                    JSONUtil.toJsonStr(result),
+                    null,
+                    null,
+                    0,
+                    success,
+                    success ? null : (result == null ? "证书服务返回为空" : result.getMessage())
+            );
+            if (!success) {
+                throw new BizException(result == null ? 500 : result.getCode(), result == null ? "证书服务返回为空" : result.getMessage());
+            }
+            adminDomainEventProducer.publish(
+                    "ANCHOR_BATCH",
+                    BIZ_TYPE_BLOCKCHAIN,
+                    null,
+                    JSONUtil.toJsonStr(result.getData()),
+                    validAdminId
+            );
+            return Result.success("批量上链触发成功", result.getData());
+        } catch (Exception e) {
+            String errorMessage = e instanceof BizException bizException ? bizException.getMessage() : e.getMessage();
+            adminOperationLogger.log(
+                    validAdminId,
+                    "管理员" + validAdminId,
+                    "ADMIN",
+                    "BLOCKCHAIN_ANCHOR_BATCH",
+                    "触发批量证书上链",
+                    "POST",
+                    "/admin/blockchain/certificate/anchor/batch",
+                    JSONUtil.toJsonStr(dto),
+                    null,
+                    null,
+                    null,
+                    0,
+                    false,
+                    errorMessage
+            );
+            log.error("admin blockchain batch anchor failed, adminId={}, certificateIds={}", validAdminId, dto.getCertificateIds(), e);
+            if (e instanceof BizException bizException) {
+                throw bizException;
+            }
+            throw new BizException(500, "批量证书上链失败：" + (errorMessage == null ? "远端服务异常" : errorMessage));
         }
-        adminDomainEventProducer.publish(
-                "ANCHOR_BATCH",
-                BIZ_TYPE_BLOCKCHAIN,
-                null,
-                JSONUtil.toJsonStr(result.getData()),
-                validAdminId
-        );
-        return Result.success("批量上链触发成功", result.getData());
     }
 
     @Override
